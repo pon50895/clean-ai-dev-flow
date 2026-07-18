@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+#
+# .githooks/pre-commit — gitleaks secret scan on staged changes.
+#
+# Activation:
+#   git config core.hooksPath .githooks   # one-shot per clone (install-tools.sh does this)
+#
+# Behavior:
+#   - If gitleaks not installed → WARN, do not block (so first-time devs aren't gated)
+#   - If gitleaks finds secrets → BLOCK commit, print redacted findings
+#   - No env-var bypass: if you have a legit "fake secret" (sample, test fixture),
+#     add an allowlist entry in .gitleaks.toml (preferred) or as a `gitleaks:allow`
+#     inline comment. SKIP_GITLEAKS / --no-verify are NOT honored — they would
+#     bypass the very protection this hook exists for.
+#
+# Why no bypass: every project that ships an "emergency bypass" eventually has
+# someone commit a real secret through it. The friction of editing the hook
+# locally (when you genuinely need to) is the feature, not a bug.
+
+set -e
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "[pre-commit] WARNING: gitleaks not installed — skipping secret scan." >&2
+  echo "[pre-commit] Install via: brew install gitleaks  (or scripts/colyn-roles/install-tools.sh)" >&2
+  exit 0
+fi
+
+if ! gitleaks protect --staged --no-banner --redact -v 2>/dev/null; then
+  echo "" >&2
+  echo "[pre-commit] gitleaks detected secrets in staged changes." >&2
+  echo "[pre-commit] Review the findings above. If a match is a false positive" >&2
+  echo "[pre-commit] (sample/test fixture), add an allowlist entry in .gitleaks.toml" >&2
+  echo "[pre-commit] OR a 'gitleaks:allow' inline comment on the matching line." >&2
+  exit 1
+fi

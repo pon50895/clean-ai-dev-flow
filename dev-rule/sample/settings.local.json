@@ -1,0 +1,21 @@
+{
+  "_comment": "Sample .claude/settings.local.json (personal layer, gitignored). bootstrap-to-new-project.sh deploys this to <target>/.claude/settings.local.json with /Users/your-name/Desktop/MY-NEW-PROJECT/** placeholders replaced by the real target path. Contains per-developer paths, bypass envs, and personal CLI tools. Universal rules live in settings.json. See dev-rule/sample/README.md.",
+
+  "permissions": {
+    "allow": [
+      "Bash(SKIP_P0_REGRESSION=1 git commit:*)",
+      "Bash(ALLOW_SECRET_COMMIT=1 git commit:*)",
+
+      "Bash(colyn ls:*)",
+      "Bash(colyn info:*)",
+      "Bash(colyn add:*)",
+      "Bash(colyn rm:*)",
+
+      "Read(/Users/your-name/Desktop/MY-NEW-PROJECT/**)",
+      "Read(/tmp/**)",
+      "Edit(/Users/your-name/Desktop/MY-NEW-PROJECT/**)",
+      "Write(/Users/your-name/Desktop/MY-NEW-PROJECT/**)",
+      "MultiEdit(/Users/your-name/Desktop/MY-NEW-PROJECT/**)"
+    ]
+  }
+}

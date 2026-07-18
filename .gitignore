@@ -1,0 +1,162 @@
+# clean-ai-dev-flow — generic AI parallel-dev template
+
+# -----------------------------------------------------------------------------
+# Multi-AI session runtime files (file-based coord protocol)
+# See dev-rule/AUTOMATION_RUNTIME_FILES.md for full spec.
+# -----------------------------------------------------------------------------
+.planning/COORD_INBOX.txt
+.planning/COORDINATOR_LOG.md
+.planning/REVIEWER_SEEN.txt
+.planning/HANDOFF.json
+.planning/*.local-backup
+.planning/*.bak.*
+.planning/archive/
+# COORDINATOR_HANDOFF_<date>.md is NOT ignored — kept as audit trail (commit it).
+
+# -----------------------------------------------------------------------------
+# Dependencies
+# -----------------------------------------------------------------------------
+node_modules/
+.pnp
+.pnp.js
+
+# -----------------------------------------------------------------------------
+# Build / dist artifacts
+# -----------------------------------------------------------------------------
+dist/
+build/
+.next/
+.next.bak_*/
+out/
+.turbo/
+.cache/
+
+# -----------------------------------------------------------------------------
+# Environment variables — catch-all
+# -----------------------------------------------------------------------------
+# Any .env, .env.<env>, .env.<anything> is ignored. Whitelist .env.example /
+# .env.<env>.example so docs templates STAY tracked if you add them later.
+.env
+.env.*
+!.env.example
+!.env.*.example
+# Explicit safety nets in case the catch-all is loosened later:
+.env.local
+.env.dev
+.env.staging
+.env.production
+.env.development.local
+.env.test.local
+.env.production.local
+
+# -----------------------------------------------------------------------------
+# Secrets & credentials (never commit these)
+# -----------------------------------------------------------------------------
+secrets/
+*.pem
+*.p12
+*.pfx
+*.cer
+*.crt
+# Service-account / cloud credentials JSON
+credentials.json
+service-account*.json
+gcp-credentials.json
+firebase-adminsdk-*.json
+# SSH-style private keys (allow *.pub)
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+
+# -----------------------------------------------------------------------------
+# Testing
+# -----------------------------------------------------------------------------
+coverage/
+*.log
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+
+# -----------------------------------------------------------------------------
+# IDE / editor
+# -----------------------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# -----------------------------------------------------------------------------
+# Local DBs / temp files
+# -----------------------------------------------------------------------------
+*.db
+*.sqlite
+*.sqlite3
+temp/
+tmp/
+scratch/
+*.bak_*
+# Ad-hoc patch backup directories produced by manual dev-rule patches.
+.patch-backup-*/
+
+# -----------------------------------------------------------------------------
+# AI & tooling — selective ignore
+# -----------------------------------------------------------------------------
+# .claude/ uses selective-ignore: per-developer settings.local.json stays local,
+# shared AI procedure docs (BOOTSTRAP / LIFECYCLE / hooks) are tracked.
+# settings.json IS whitelisted as of 2026-05-30 (post split-settings refactor):
+# universal allow + ALL deny live there; per-developer paths/bypasses moved
+# to settings.local.json. See split-settings skill for the cut-line.
+.claude/*
+!.claude/SESSION_BOOTSTRAP.md
+!.claude/WORKTREE_LIFECYCLE.md
+!.claude/settings.json
+!.claude/hooks
+!.claude/hooks/**
+# skills 也要 track:整條 dev-flow 跑在 Claude Code 裡,skills 沒進 git 的話,
+# clone 這個 repo 的人拿到的是「一份教你複製不存在目錄的 GETTING_STARTED」。
+!.claude/skills
+!.claude/skills/**
+.gemini/*
+!.gemini/antigravity/
+.gemini/tmp_tests/
+
+# -----------------------------------------------------------------------------
+# Python (optional, common helper packages)
+# -----------------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.egg
+*.egg-info/
+.venv/
+venv/
+ENV/
+env/
+.pytest_cache/
+.coverage
+htmlcov/
+*.pyc
+
+# -----------------------------------------------------------------------------
+# OS specific
+# -----------------------------------------------------------------------------
+Thumbs.db
+desktop.ini
+
+# -----------------------------------------------------------------------------
+# Local AI / MCP tooling artifacts (per-developer, never committed)
+# -----------------------------------------------------------------------------
+# .mcp.json: Claude Code MCP server config (local stdio binary paths).
+# .gitnexus/: gitnexus tool cache (binary, machine-specific).
+.mcp.json
+.gitnexus/
+
+# agent guardrails: 執行紀錄,非程式碼(每個專案自己累積)
+.planning/learning/gate-fires.jsonl
+.planning/learning/agent-payload-probe.jsonl

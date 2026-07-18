@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+#
+# .githooks/pre-push — push 前在「本機」跑一次專案測試。零 GitHub、零 CI 用量。
+#
+# 為什麼是 pre-push 不是 pre-commit:
+#   一個 phase 可能 commit 十幾次但只 push 一兩次。測試放 push 點 = 跑的次數少
+#   一個量級,還是擋在「東西離開你機器之前」,對齊 dev-rule R10(未跑測試不 merge)。
+#   而且全在本機 node/jest 跑,不觸發任何 GitHub Actions —— 你擔心的用量問題在這裡不存在。
+#
+# 行為:
+#   - 偵測不到測試指令(沒 package.json 或沒 test script)→ 放行(不擋第一次用的人)
+#   - 測試指令存在且失敗 → 擋 push,印錯誤
+#   - 測試通過 → 放行
+#
+# Activation: git config core.hooksPath .githooks   (install-tools.sh 已做)
+#
+# ponytail: 只跑專案自己宣告的 test script,不自作主張裝 runner、不分 changed-files。
+#           測試太慢想只跑相關子集 → 在專案 package.json 的 test script 內自理。
+
+set -e
+
+# 沒 package.json → 不是 node 專案,這支不負責其他語言,放行。
+[ -f package.json ] || { echo "[pre-push] 無 package.json,跳過測試 gate。" >&2; exit 0; }
+
+# 沒有真正的 test script(或還是 npm init 的預設 placeholder)→ 放行。
+test_script="$(node -e "process.stdout.write((require('./package.json').scripts||{}).test||'')" 2>/dev/null || true)"
+case "$test_script" in
+  ""|*"no test specified"*)
+    echo "[pre-push] package.json 無 test script,跳過。要啟用 gate:在 scripts.test 放真正的測試指令。" >&2
+    exit 0 ;;
+esac
+
+echo "[pre-push] 本機跑測試(零 GitHub 用量): npm test" >&2
+if ! npm test --silent; then
+  echo "" >&2
+  echo "[pre-push] 測試失敗 —— push 已擋下(dev-rule R10)。修綠再 push。" >&2
+  echo "[pre-push] 真的要推 WIP:開 WIP 分支,別推進受保護分支;不要用 --no-verify 繞(R11)。" >&2
+  exit 1
+fi
+echo "[pre-push] 測試通過,放行 push。" >&2
