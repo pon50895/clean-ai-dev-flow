@@ -40,9 +40,14 @@ BRIEF_DISPATCHER="$COLYN/dispatcher-bootstrap-brief.md"
 BRIEF_REVIEWER="$COLYN/reviewer-bootstrap-brief.md"
 BRIEF_TESTER="$COLYN/tester-bootstrap-brief.md"
 
+# 模型 profile:supervisor 的 opus model id 與 worker 併發上限依 dev-rule/HARNESS_MODEL 決定
+# (harness/opus-4-8 vs opus-5)。source 後可用 $PROFILE_MODEL_OPUS / $FLEET_MAX_WORKERS。
+source "$COLYN/model-profile.sh"
+echo "[start-fleet] profile=$PROFILE_MODEL opus=$PROFILE_MODEL_OPUS max_workers=$FLEET_MAX_WORKERS"
+
 # Pane definitions: idx | name | cwd | brief | model
 PANES=(
-  "0|supervisor|$MAIN|$BRIEF_SUPERVISOR|claude-opus-4-7"
+  "0|supervisor|$MAIN|$BRIEF_SUPERVISOR|$PROFILE_MODEL_OPUS"
   "1|dispatcher|$WT/sentinel-monitor|$BRIEF_DISPATCHER|claude-sonnet-4-6"
   "2|reviewer|$WT/reviewer-monitor|$BRIEF_REVIEWER|claude-sonnet-4-6"
   "3|task-2|$WT/task-2||claude-sonnet-4-6"
@@ -123,9 +128,19 @@ done
 
 echo ""
 echo "=== Phase 2: boot Claude in each pane ==="
+_workers_booted=0
 for entry in "${PANES[@]}"; do
   IFS='|' read -r idx name cwd brief model <<< "$entry"
   pane="$SESSION:$idx"
+  # profile 併發閘:task-* worker 超過 FLEET_MAX_WORKERS 就不啟動(opus-5 砍半防 ~5x 燒錢)。
+  # 非 worker(supervisor/dispatcher/reviewer/tester)不受限。
+  if [[ "$name" == task-* ]]; then
+    _workers_booted=$((_workers_booted + 1))
+    if [ "$_workers_booted" -gt "$FLEET_MAX_WORKERS" ]; then
+      echo "  [$idx] $name — 跳過(worker 超過 FLEET_MAX_WORKERS=$FLEET_MAX_WORKERS,profile=$PROFILE_MODEL)"
+      continue
+    fi
+  fi
   echo "  [$idx] $name"
   boot_claude "$pane" "$model" "$brief"
 done

@@ -17,6 +17,25 @@
 - Workflow 內 agent 另有 `effort`：`low`/`medium`/`high`/`xhigh`/`max`——機械工用 `low`，最難的 verify/judge 才升。
 - **勿憑記憶填型號**。不確定就查 harness 文件或標「待 user 確認」。
 
+### 1.2 模型 profile 分 branch（opus-4-8 / opus-5）
+
+harness 依「當前跑哪個 opus」載不同 profile。切換由 branch 帶動:兩條長駐設定 branch
+`harness/opus-4-8` 與 `harness/opus-5` **只差 `dev-rule/HARNESS_MODEL` 一行**,其餘邏輯
+共用(`scripts/colyn-roles/model-profile.sh` 讀該標記給出可調參數,避免跨 branch 重複邏輯腐化)。
+
+| 面向 | `harness/opus-4-8`(baseline) | `harness/opus-5`(高風險模式) |
+|---|---|---|
+| opus 角色 model id | `claude-opus-4-8` | `claude-opus-5` |
+| fleet worker 併發上限 | `FLEET_MAX_WORKERS=6` | `3`(砍半,Opus 5 ~5x 成本) |
+| 驗收嚴格度 | 一般 | `REQUIRE_DOUBLE_VERIFY=1`(所有產出過 fresh-agent 二驗 + §5 抽驗) |
+| 收尾提醒 | 無 | Stop hook `opus5-verify-reminder.js` 注入抽驗提醒 |
+
+- 啟動:`bash scripts/colyn-roles/harness-launch.sh opus-4-8|opus-5` —— 偵測 WIP(有已追蹤未 commit
+  變更就不切、fail-safe,絕不 stash/reset)→ 切對應 branch → `claude --model <id>`。
+- **Opus 5 安全網(R4)**:Opus 5 曾實證捏造 file:line 與假實測、過動。允許使用但產出一律加倍驗
+  (`REQUIRE_DOUBLE_VERIFY` + Stop 提醒)。此為程序性紀律,非自動稽核機器(不造無法驗證的機器)。
+- 其他模型(sonnet/haiku 主線)不走此 branch 機制,沿用 baseline profile。
+
 ## 2. 本環境派工的硬限制（先讀，否則派了就被擋）
 
 1. **若你的環境裝了會擋非 Explore/Plan 型別 Agent 派工的 orchestration hook**（有些多 agent 編排會這樣設，deny 訊息會告訴你）。

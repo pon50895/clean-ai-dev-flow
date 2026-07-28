@@ -16,7 +16,9 @@ set -euo pipefail
 ROOT="${WORKSPACE_ROOT:-$HOME/Desktop/parallel-dev-workspace}"
 WORKER_MODEL="${WORKER_MODEL:-claude-sonnet-4-6}"
 
-MODEL_OPUS="claude-opus-4-8"
+# 模型 profile:MODEL_OPUS 由 dev-rule/HARNESS_MODEL 標記決定(harness/opus-4-8 vs opus-5)。
+source "$(cd "$(dirname "$0")" && pwd)/model-profile.sh"
+MODEL_OPUS="$PROFILE_MODEL_OPUS"
 MODEL_SONNET="claude-sonnet-4-6"
 MODEL_HAIKU="claude-haiku-4-5-20251001"
 
