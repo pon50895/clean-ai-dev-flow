@@ -16,7 +16,7 @@ set -euo pipefail
 ROOT="${WORKSPACE_ROOT:-$HOME/Desktop/parallel-dev-workspace}"
 WORKER_MODEL="${WORKER_MODEL:-claude-sonnet-4-6}"
 
-MODEL_OPUS="claude-opus-4-7"
+MODEL_OPUS="claude-opus-4-8"
 MODEL_SONNET="claude-sonnet-4-6"
 MODEL_HAIKU="claude-haiku-4-5-20251001"
 
