@@ -17,6 +17,17 @@
 - Workflow 內 agent 另有 `effort`：`low`/`medium`/`high`/`xhigh`/`max`——機械工用 `low`，最難的 verify/judge 才升。
 - **勿憑記憶填型號**。不確定就查 harness 文件或標「待 user 確認」。
 
+### 1.1 Opus 5：未驗證階段，產出加倍查
+
+Opus 4.8 為已驗證主線，照既有流程跑即可,不需額外處理。**Opus 5 在本環境屬未驗證階段**
+(業界回報成本高、且曾實證捏造 file:line / 假實測資料),可以用,但**只要 session 跑在 Opus 5,
+它的產出一律當高風險來源**:每個「檔案:行號」「實測數字」至少抽驗一筆真實存在(ls/grep/開該行);
+關鍵結論派 fresh-context agent 二驗;發現捏造一筆整份作廢重驗。此為程序性紀律,非自動稽核機器。
+
+機器面:`.claude/hooks/opus5-verify-reminder.js`(Stop hook)從 transcript 讀當前真實模型,
+**只在 session 是 Opus 5 時**注入上述抽驗提醒;4.8 及其他模型完全 no-op、零干擾。
+待 Opus 5 在本環境累積足夠驗證後,再由 user 決定放寬。
+
 ## 2. 本環境派工的硬限制（先讀，否則派了就被擋）
 
 1. **若你的環境裝了會擋非 Explore/Plan 型別 Agent 派工的 orchestration hook**（有些多 agent 編排會這樣設，deny 訊息會告訴你）。
