@@ -42,7 +42,7 @@ BRIEF_TESTER="$COLYN/tester-bootstrap-brief.md"
 
 # Pane definitions: idx | name | cwd | brief | model
 PANES=(
-  "0|supervisor|$MAIN|$BRIEF_SUPERVISOR|claude-opus-4-7"
+  "0|supervisor|$MAIN|$BRIEF_SUPERVISOR|claude-opus-4-8"
   "1|dispatcher|$WT/sentinel-monitor|$BRIEF_DISPATCHER|claude-sonnet-4-6"
   "2|reviewer|$WT/reviewer-monitor|$BRIEF_REVIEWER|claude-sonnet-4-6"
   "3|task-2|$WT/task-2||claude-sonnet-4-6"

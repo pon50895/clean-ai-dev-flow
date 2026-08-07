@@ -1,44 +1,33 @@
 #!/usr/bin/env node
 /**
- * over-ask-reminder.js — Stop hook reminder: did the last reply turn
- * in-scope work into a question thrown back at the user?
+ * over-ask-reminder.js — Stop hook 提醒:把 in-scope 動作包成問句丟回 user 了嗎。
  *
- * Why this exists: deferring in-scope, judgment-free decisions (ordering,
- * re-verification, build steps, backlog-vs-now) back to the user as a
- * question is a recurring failure mode. The rule already lives in
- * dev-rule/AI_INSTRUCTIONS.md / core-contract-inject.js, but a rule stated at
- * session start doesn't catch it at the moment of output — that needs a
- * checkpoint at generation time, not just at read time.
+ * 為什麼存在:over-ask(該自決卻回頭問)是 agent 最常見的判斷型壞習慣之一。它發生在
+ * 「輸出層」——不是某個工具呼叫,是最後一段話的措辭,所以 PreToolUse guard 攔不到。
+ * 唯一的攔截點是 Stop hook 掃最後一則訊息(同 opus5-verify-reminder.js 的機制)。
+ * 「知道規則」不夠,判斷型行為需要執行時的檢查點。
  *
- * Behavior: scans the last message in the main transcript; a narrow regex
- * matches sentence patterns that turn an in-scope action into an offer
- * ("want me to... ?", "or should you...", "should I do X now or later") and
- * injects a one-line reminder when it hits.
+ * 行為:掃主對話最後一則訊息,窄 regex 命中「把該自己做的 in-scope 動作當選項丟回 user」
+ * 的句型(要我…嗎/還是你…/要不要我/現在做還是 backlog/我先…還是…)時,注入一行提醒。
+ * 提醒同時區分兩種正確處理:in-scope 執行自決直接做;重大建議正式攤開,別用順帶問法帶過。
  *
- * Hard constraint: this is a reminder, not a deny. Always exits 0, never
- * blocks anything. Fully try/catch'd — a hook failure must never affect
- * anything else.
+ * 硬約束:這是提醒不是 deny。永遠 exit 0,絕不阻斷任何流程。全 try/catch,
+ * hook 自身故障不得影響任何事。
  *
- * Known tradeoff (deliberately accepted, do not widen the regex): this will
- * false-positive on legitimate high-stakes/scope/business-tradeoff
- * questions. A hit only adds one reminder line, it never denies, so the
- * false-positive cost is acceptable; widening the pattern list is the wrong
- * direction — false positives on real judgment calls are worse than a missed
- * reminder.
+ * 已知代價(刻意接受,不擴大 regex):會誤中「合法的高風險/scope/商業取捨」問句。
+ * 命中只多一行提醒、非 deny,誤中代價可接受;擴大詞表是明確禁止的方向。
  */
 
 const fs = require('fs');
 
-// Narrow patterns: first-person action framed as a question, or a "I do X vs
-// you do X / do it now vs defer" binary. English variants of the same shape
-// as the Chinese ones — extend per your team's actual language, don't widen
-// the semantic net.
+// 窄句型:第一人稱行動 offer 當成問句 / 我-做 vs user-做或延後 的二選一。
 const OVER_ASK_PATTERNS = [
-  /want me to\b.{0,40}\?/i,
-  /should I\b.{0,40}\?/i,
-  /or would you (rather|prefer)/i,
-  /do you want me to/i,
-  /(do it now|do this now|should I do this).{0,20}(or|vs\.?)\s+(later|backlog|defer)/i,
+  /要我.{0,30}(嗎|還是|\?|？)/,
+  /要不要我/,
+  /需要我.{0,20}(嗎|還是|\?|？)/,
+  /還是你(來|自己|要|先)/,
+  /(現在做|先做|現在派|先派).{0,15}(還是|backlog|之後再|等你)/,
+  /我(先|直接|來|這就).{0,20}還是/,
 ];
 
 function getLastAssistantMessageText(transcriptPath) {
@@ -73,15 +62,12 @@ try {
 
     if (hit) {
       process.stdout.write(
-        'Reminder: this reply looks like it turned in-scope work into a question thrown back ' +
-        'at the user (want me to... / should I... / do it now or later). The convention here: ' +
-        'decide and execute ordering, re-verification, build steps, and backlog-vs-now calls ' +
-        'yourself; stop when the requested scope is done, without expanding it further. Only ' +
-        'stop to ask on genuine high-stakes actions, scope expansion, red lines, or business ' +
-        'strategy.\n'
+        '提醒:偵測到把動作包成問句丟回 user(要我…嗎/還是你…/現在做還是 backlog)。分兩種處理,別混:\n' +
+        '(1) in-scope 執行(順序、複驗、建置、backlog-vs-now)→ 自決並直接發工具呼叫,不 say-vs-do;指定範圍做完就收尾停手,不無限擴張。\n' +
+        '(2) 重大建議/決策(毀滅性或高風險指令、scope 擴張、架構或商業戰略)→ 不是不提,是要正式攤開(利害 + 取捨 + 建議),不能用順帶一句的問法帶過。\n'
       );
     }
   }
-} catch { /* reminder failure must never block work */ }
+} catch { /* 提醒故障絕不擋工作 */ }
 
 process.exit(0);

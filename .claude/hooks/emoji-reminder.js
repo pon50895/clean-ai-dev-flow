@@ -1,23 +1,17 @@
 #!/usr/bin/env node
 // emoji-reminder -- Stop hook.
 //
-// Why: a "no emoji anywhere" red line typically includes "the reply itself",
-// but a pre-commit content scan only covers committed files — it can't catch
-// emoji in a conversational reply, because that's output-layer text that
-// never gets written to a file. A Stop hook is the only place that can see
-// the last reply. Mirrors the other Stop-hook reminders in this file set:
-// scan the last message, reuse the same Unicode class this repo's
-// PreToolUse content guard (redline-guard.js) already uses for consistency,
-// inject a reminder on a hit.
+// 為什麼:R1「無 emoji 於任何地方」含「回覆本身」,但 scripts/emoji-scan.mjs(pre-commit)
+// 只掃 commit 的檔案,攔不到「對話回覆裡的 emoji」—— 那是輸出層,只有 Stop hook 掃得到。
+// 仿 over-ask-reminder.js / severity-claim-reminder.js:掃最後一則訊息,用與 emoji-scan.mjs
+// 相同的 Unicode Extended_Pictographic 判定(已校準:不誤中箭頭 -> / 破折號 -- / box-drawing),
+// 命中就注入提醒。
 //
-// Hard constraint: reminder, not deny. Always exit 0, never block. Fully
-// try/catch'd — a hook failure must never affect anything else.
+// 硬約束:提醒不是 deny。永遠 exit 0,絕不阻斷。全 try/catch,hook 自身故障不得影響任何事。
 
 const fs = require('fs');
 
-// Keep this in sync with whatever Unicode class your PreToolUse content guard
-// uses (e.g. redline-guard.js), so the two checks agree on what counts.
-const EMOJI_RE = /\p{Emoji_Presentation}|\p{Emoji}\u{FE0F}|\u{20E3}/u;
+const EMOJI_RE = /\p{Extended_Pictographic}/u; // 同 scripts/emoji-scan.mjs:95
 
 function getLastAssistantMessageText(transcriptPath) {
   if (!transcriptPath || !fs.existsSync(transcriptPath)) return null;
@@ -48,10 +42,9 @@ try {
 
   if (typeof text === 'string' && text.length > 0 && EMOJI_RE.test(text)) {
     process.stdout.write(
-      'Reminder: the reply contains emoji. No-emoji applies everywhere (replies / code / ' +
-      'comments / logs / commits / PRs) — use plain text instead.\n'
+      '提醒:R1 —— 回覆裡出現 emoji。R1 禁 emoji 於任何地方(回覆 / code / 註釋 / 日誌 / commit / PR),改用文字描述。\n'
     );
   }
-} catch { /* reminder failure must never block work */ }
+} catch { /* 提醒故障絕不擋工作 */ }
 
 process.exit(0);
