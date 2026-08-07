@@ -48,6 +48,17 @@ scorer,所以 validation gate = **user 人工 review**。本 skill 只負責「�
 > §0 curation 原則:已被機器 gate 強制的規則,不靠重讀文件維持。蒸餾的目標是「往梯子
 > 上方移動」——把 prose 規則升級成 gate,而不是再加一段 prose。
 
+## 新 gate 上線:shadow → enforce(會擋工作的 gate 一律先影子)
+
+新增或改「會 deny/ask」的 gate(梯子 1-3 階),**預設先上 shadow(只記錄不攔)**,觀察數日確認零誤判,再翻成 enforce:
+
+1. **shadow**:命中只寫一筆 jsonl(誰、哪條規則、原指令),`permissionDecision` 一律 `allow`——絕不 deny/ask。跑幾天真實流量。
+2. **檢視誤判**:讀那份 jsonl,若出現「本該放行卻命中」→ 先修 regex/條件,不翻 enforce。
+3. **enforce**:零誤判才把 shadow 命中改回 deny/ask。
+4. **fail-open 不可協商**:設定損毀 / payload parse 失敗 → gate 一律放行(exit 0),絕不因自己壞掉擋正常工作。
+
+> 為什麼:gate 也是軟體,誤判會逼人繞過它。準備一支只記錄、不攔截的 shadow-mode PreToolUse hook 當樣板,新 gate 上線前先照它跑一輪。純 Stop / reminder 類(只注入文字、不能 deny)無需 shadow——本來就擋不到工作。
+
 ## 觸發
 
 **每週一次。** 觸發不靠記得:`session-learning-inject.sh`(SessionStart hook)讀
