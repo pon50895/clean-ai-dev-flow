@@ -190,6 +190,14 @@ const ASK = [
   { re: /\bsudo\b/, why: 'sudo (elevated privileges)' },
   { re: /\bchmod\s+777\b/, why: 'chmod 777' },
   { re: /\bchown\b/, why: 'chown' },
+  // 寫入/複製 .env / secret / 憑證檔:permission deny 的 Edit(path) 只擋編輯工具,
+  // Bash 的 redirect / cp / mv / tee / sed -i 完全繞得過。§2「修改 .env / secrets / *.pem
+  // 需確認」+「.env 絕不碰」→ ASK 強制確認(init-local-env 這類合法場景存在,故非硬 deny)。
+  // 只攔「寫入動作」,純讀(cat/grep/source .env)不匹配。
+  { re: /(?:>|>>)\s*['"]?\S*\.(?:env|pem|key)\b/, why: 'redirect 寫入 .env/secret 檔 — .env 絕不碰,要動先確認' },
+  { re: /\b(?:cp|mv|tee|rsync|install)\s[^|;&\n]*\.(?:env|pem|key)\b/, why: '複製/搬移/寫入 .env/secret 檔 — 禁把 .env 複製進 worktree,要動先確認' },
+  { re: /\bsed\s+-i\b[^|;&\n]*\.(?:env|pem|key)\b/, why: 'sed -i 就地改 .env/secret 檔 — 要動先確認' },
+  { re: /(?:(?:>|>>)\s*['"]?\S*|\b(?:cp|mv|tee|sed\s+-i)\b[^|;&\n]*)credentials\S*\.json\b/, why: '寫入/複製 credentials json — 要動先確認' },
 ];
 
 function decide() {
