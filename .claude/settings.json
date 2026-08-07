@@ -10,6 +10,7 @@
       {
         "matcher": "startup|resume|clear|compact",
         "hooks": [
+          { "type": "command", "command": "node \"$CLAUDE_PROJECT_DIR/.claude/hooks/core-contract-inject.js\"" },
           { "type": "command", "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/colyn-roles/session-learning-inject.sh\"" }
         ]
       }
