@@ -161,13 +161,13 @@ YJS_WS_PORT=4456+N    # yjs websocket
 
 ### 4.1 跨 worktree DB schema 衝突
 
-**§4.6 序列化**：同時段只允許一個 worktree 跑 `prisma migrate dev`。
+**§4.6 序列化**：同時段只允許一個 worktree 跑 schema migration 指令（例：`prisma migrate dev`）。
 
 協調 protocol：
 1. 想動 schema 的 session 先讀 `.planning/HANDOFF.json` 看 `db_lock` 欄位
 2. 沒人持有 lock → 寫入 `db_lock: <worktree-name> + timestamp`，commit (`chore: acquire db_lock`)
 3. 跑完 migrate → push migration → 刪除 `db_lock`，commit (`chore: release db_lock`)
-4. 其他 session 看到 lock 存在 → 只能 `prisma generate`，不可動 schema
+4. 其他 session 看到 lock 存在 → 只能做不動 schema 的同步（例：`prisma generate`），不可動 schema
 
 ### 4.2 多 session 動同一檔
 
@@ -333,71 +333,10 @@ set-hook -g alert-bell 'run-shell -b "afplay /System/Library/Sounds/Glass.aiff"'
 - window 5: last commit 35 min ago, pane shows "thinking" only
 
 ### conflicts
-- task-2 + task-3 both edited apps/server/src/middleware/auth.ts
+- task-2 + task-3 both edited src/middleware/auth.ts
 ```
 
 ---
 
 *Generated 2026-05-06 from launch v1 sprint experience.*
 *Last revised: 2026-05-07 (added §4.4 Review-Failure Loop pointer + §4.5 Context-Full Handoff pointer to WORKFLOW_PROTOCOLS.md).*
-
----
-
-## DB Schema Coordination (updated 2026-05-08, replaces manual db_lock commit dance)
-
-### Old (deprecated)
-```
-git commit -m "chore: acquire db_lock <worktree>"
-prisma migrate dev
-git commit -m "chore: release db_lock"
-```
-
-### New (use db-coord.sh)
-```bash
-bash scripts/skill.sh db-coord acquire <worktree> <branch> <phase> "<purpose>"
-# Output: ACQUIRED | DENIED (held by X for N seconds) | STALE (auto-released)
-
-# Hold lock — refresh heartbeat every 5 min:
-bash scripts/skill.sh db-coord heartbeat <worktree>
-
-# Run migration (use docker exec to avoid inline DATABASE_URL leak):
-docker exec <db-container> sh -c "cd /app/<workspace> && npx prisma migrate dev --name <migration>"
-
-# Release when done:
-bash scripts/skill.sh db-coord release <worktree>
-```
-
-### State location
-`.planning/HANDOFF.json` field `db_lock` (with `heartbeat` timestamp).
-History preserved in `db_lock_history[]`.
-
-### Stale handling
-- 15 min without heartbeat → auto-sweep on next `db-coord sweep` call
-- Dispatcher runs sweep per tick (5 min cadence)
-- Manual sweep: `bash scripts/skill.sh db-coord sweep`
-
-## Docker Resource Coordination (added 2026-05-08)
-
-Docker daemon is R1 scarce resource — single instance shared by all worktrees.
-
-### Held by: supervisor / dispatcher / tester / reviewer
-### NOT held by: workers (workers escalate via INBOX)
-
-### Locked operations
-- `docker compose down/up/restart/build`
-- `docker volume rm` / `docker network rm` / `docker rm`
-- `docker exec <container>` with mutating commands (npm install, prisma migrate)
-
-### Unrestricted (no lock needed)
-- `docker ps`, `docker images`, `docker logs`, `docker stats`
-- `docker exec <container>` with read-only commands (curl, ls, cat, grep)
-- `docker exec <container>` with build (read code, write artifact in container)
-
-### Usage
-```bash
-bash scripts/skill.sh docker-coord acquire <actor> "<op-description>"
-# ...mutating docker op...
-bash scripts/skill.sh docker-coord release <actor>
-```
-
-5 min stale threshold — auto-sweep on next dispatcher tick.

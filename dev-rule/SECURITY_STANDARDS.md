@@ -1,6 +1,6 @@
 # 資訊安全規範 (Security Standards)
 
-本規範整合 **OWASP Top 10 (2021)**、反滲透 (Anti-Penetration) 與個資保護要求。所有 AI 助手與開發人員提交代碼前，**必須**逐項檢查本文件。專案專屬的業務語境（具體服務名、Port 配置、第三方廠商）請寫進根目錄 `CLAUDE.md` 的「業務紅線」段。
+本規範為本專案的最高資安準則，整合 **OWASP Top 10 (2021)**、反滲透 (Anti-Penetration) 與個資保護要求。所有 AI 助手與開發人員提交代碼前，**必須**逐項檢查本文件。
 
 ---
 
@@ -9,8 +9,8 @@
 | 原則 | 內涵 |
 |------|------|
 | **最小權限 (Least Privilege)** | 任何角色 / 服務帳號 / Token 僅授予完成任務的最小權限。 |
-| **零信任 (Zero Trust)** | 內網服務（DB / cache / WebSocket / 微服務）視同公開網路，皆需驗證。 |
-| **深度防禦 (Defense in Depth)** | 同一風險至少有兩層防線（例：WAF + 應用層驗證 + DB 約束）。 |
+| **零信任 (Zero Trust)** | 內網服務 (Yjs, Redis, PostgreSQL) 視同公開網路，皆需驗證。 |
+| **深度防禦 (Defense in Depth)** | 同一風險至少有兩層防線 (例: WAF + 應用層驗證 + DB 約束)。 |
 | **預設安全 (Secure by Default)** | 所有功能初始為「拒絕」，必須明確授權才放行。 |
 | **可稽核 (Auditable)** | 所有寫入 / 權限變更 / 登入事件必須留下不可竄改的日誌。 |
 
@@ -85,9 +85,9 @@
   - Node 容器 `USER node`（非 root）。
   - 鏡像版本鎖定 SHA256 digest，禁止 `latest`。
   - 健康檢查不可包含明文密碼（改用 `--no-auth-warning` + env 載入）。
-- **R5.4 對外端口**：僅 80/443 對 0.0.0.0；DB / cache / 內部微服務僅綁 `127.0.0.1` 或 docker 內網。
+- **R5.4 對外端口**：僅 80/443 對 0.0.0.0；PostgreSQL/Redis/Yjs 僅綁 `127.0.0.1` 或 docker 內網。
 - **R5.5 錯誤回應**：生產環境 `NODE_ENV=production` 時，回應禁止包含 stack trace、SQL、檔案路徑。
-- **R5.6 預設帳號**：禁止在 production 部署如 `admin@example.com / Admin123!` 等弱密碼種子帳號；種子腳本須讀取 env 或拒絕在 prod 執行。
+- **R5.6 預設帳號**：禁止在 production 部署 `admin@example.com / Admin123!` 等弱密碼種子帳號；種子腳本須讀取 env 或拒絕在 prod 執行。
 
 ---
 
@@ -96,7 +96,7 @@
 ### 強制規範
 - **R6.1** CI **必須** 跑 `npm audit --audit-level=high`，發現 `high/critical` 阻擋合併。
 - **R6.2** 每月執行 `npm outdated` 並建立升級 PR；`high/critical` CVE 須於 7 天內修補。
-- **R6.3** 禁止使用以下不安全套件版本（持續更新；專案層補充於 `CLAUDE.md`）：
+- **R6.3** 禁止使用以下不安全套件版本（持續更新）：
   - `jsPDF < 3.0.1`
   - `protobufjs < 7.2.5`
   - `quill < 2.0.0`
@@ -111,15 +111,15 @@
 - **R7.2 帳號鎖定**：同一帳號 5 次登入失敗 → 鎖 15 分鐘；同一 IP 10 次 → 鎖 1 小時。
 - **R7.3 MFA**：管理員 (`SUPER_ADMIN`, `ORG_ADMIN`) **必須** 啟用 TOTP 或 WebAuthn。
 - **R7.4 Session 失效**：登出、修改密碼、變更權限後，全部既存 token 須失效（採 JWT jti + Redis blacklist 或 token version 欄位）。
-- **R7.5 OAuth**：第三方登入 callback 必須驗證 `state`（HMAC 簽章）與 nonce。
-- **R7.6 WebSocket**：連線時 **必須** 透過 query token 或 first-message authentication 驗證 JWT；驗證失敗立即 `close(1008)`。房間名須對應使用者可見之資源（不可信任 client 提供）。
+- **R7.5 OAuth**：Google / LINE callback 必須驗證 `state`（HMAC 簽章）與 nonce。
+- **R7.6 WebSocket / Yjs**：連線時 **必須** 透過 query token 或 first-message authentication 驗證 JWT；驗證失敗立即 `close(1008)`。房間名須對應使用者可見之資源。
 
 ---
 
 ## 8. OWASP A08:2021 — 軟體與資料完整性失效 (Software & Data Integrity Failures)
 
 ### 強制規範
-- **R8.1 Webhook 驗證**：第三方（金流、IM、payment provider）callback 必須驗證 HMAC-SHA256 簽章與 timestamp（避免 replay）。
+- **R8.1 Webhook 驗證**：金流 / 訊息平台 callback（例：Stripe） 必須驗證 HMAC-SHA256 簽章與 timestamp（避免 replay）。
 - **R8.2 CI 供應鏈**：`package-lock.json` 必須提交；CI 用 `npm ci` 而非 `npm install`。
 - **R8.3 反序列化**：禁止對使用者輸入做 `JSON.parse` 後直接 spread 至 Prisma `data`，必須先過 zod schema。
 - **R8.4 上傳檔案**：除 MIME 檢查外，**必須** 用 `file-type` 套件驗 magic bytes；圖片走 `sharp` 重新編碼，剝除 EXIF。
@@ -140,8 +140,8 @@
 - **R9.2** 日誌**禁止**包含明文密碼、JWT、信用卡完整號、CVV；email/手機需遮罩。
 - **R9.3** 日誌保留 ≥ 180 天；高敏感區（金流）≥ 1 年。
 - **R9.4** 需設定告警：
-  - 5 分鐘內同帳號失敗 ≥ 5 → IM 告警（Slack / Discord / Teams）
-  - 1 小時內 5xx 比例 ≥ 5% → 值班通知 (PagerDuty / OpsGenie)
+  - 5 分鐘內同帳號失敗 ≥ 5 → Slack 告警
+  - 1 小時內 5xx 比例 ≥ 5% → PagerDuty
   - Sentry 採樣 production ≤ 0.1，dev = 1.0。
 - **R9.5** 日誌寫入後 **不可** 修改 (append-only)；Loki/Elastic 需限制 delete 權限。
 
@@ -161,7 +161,7 @@
 ## 11. 反滲透 (Anti-Penetration) 專章
 
 ### 11.1 攻擊面收斂
-- Production 環境 **僅** 對外暴露 80/443。其餘服務（內部 API、cache、DB、微服務）須位於 docker 內網或 VPC private subnet。
+- Production 環境 **僅** 對外暴露 80/443。其餘服務 (Yjs 3002、Redis 6379、Postgres 5432、BaZi 8001、ZiWei 8002) 須位於 docker 內網或 VPC private subnet。
 - Nginx 移除 `Server` header；隱藏版本號。
 - 禁用 HTTP `TRACE/TRACK` 方法。
 
@@ -171,18 +171,18 @@
 
 ### 11.3 入侵後遏制
 - 應用容器以 `read-only` rootfs 啟動 (`read_only: true`)，僅 `/tmp` 與必要 volume 可寫。
-- Outbound egress allowlist：應用容器僅可外連白名單域名（例：第三方 API、payment vendor、object storage）。
+- Outbound egress allowlist：應用容器僅可外連白名單域名（僅列專案實際使用的第三方 API）。
 - DB credentials 使用 IAM / Vault 短期簽發；禁止長效密碼。
 
 ### 11.4 機敏資料外洩偵測
 - 啟用 git pre-commit `gitleaks` 與 `secretlint`，阻擋 secret 進入版控。
 - CI `gitleaks detect` 失敗即 break build。
-- 已洩漏密鑰 **24 小時內** 必須輪換並重新發行（流程見 `SECURITY_ROTATION_SOP.md`）。
+- 已洩漏密鑰 **24 小時內** 必須輪換並重新發行。
 
 ### 11.5 滲透測試節奏
 - **每季 (Quarterly)**：跑 `scripts/security-audit.sh` 全量自動化掃描。
 - **每半年**：邀請外部紅隊或執行 OWASP ZAP / Burp Suite 主動掃描。
-- **每年**：第三方 PCI-DSS / ISO 27001 風格稽核（視業務敏感度）。
+- **每年**：第三方 PCI-DSS / ISO 27001 風格稽核。
 
 ---
 
@@ -199,8 +199,8 @@
 
 | 階段 | 檢核 | 工具 |
 |------|------|------|
-| **Pre-commit** | 阻擋 `.env` / 密鑰 / Emoji | husky + gitleaks + 自訂 hook |
-| **Pre-push** | `npm audit` / lint / type-check | husky |
+| **Pre-commit** | 阻擋 `.env` / 密鑰 / Emoji | git hooks (.githooks) + gitleaks + 自訂 hook |
+| **Pre-push** | `npm audit` / lint ratchet / tsc ratchet | .githooks |
 | **CI** | `scripts/security-audit.sh`、Snyk、CodeQL | GitHub Actions |
 | **PR Review** | 本文件 R1–R10 逐項勾選 | PR template checklist |
 | **Pre-deploy** | DAST (OWASP ZAP baseline) | CI pipeline |
@@ -225,7 +225,7 @@
 
 ## 14. 自動化測試腳本
 
-請參考 `scripts/security-audit.sh`（若存在），至少於以下時機執行：
+請參考 `scripts/security-audit.sh`，至少於以下時機執行：
 1. 每次 PR Merge 前。
 2. 每次 production 部署前。
 3. 每週排程 (CI cron)。
@@ -245,4 +245,5 @@
 
 ---
 
-*主要參考: OWASP Top 10 (2021), CIS Benchmark, NIST SP 800-53, PDPA / GDPR。專案層業務專屬紅線（具體服務名、Port、第三方 vendor）請寫進根目錄 `CLAUDE.md`。*
+*版本: 1.0.0 / 最後修訂: 2026-05-04*
+*主要參考: OWASP Top 10 (2021), CIS Benchmark, NIST SP 800-53, PDPA*

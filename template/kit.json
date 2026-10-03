@@ -1,0 +1,53 @@
+{
+  "$schema": "./kit.schema.json",
+  "version": 1,
+
+  "commands": {
+    "test": "npm test",
+    "lint": "npm run --silent lint",
+    "typecheck": "npm run --silent typecheck",
+    "build": "npm run build",
+    "p0": ""
+  },
+
+  "protectedBranches": ["main", "master", "release"],
+  "baseRef": "origin/main",
+
+  "destructiveGuard": {
+    "allowPaths": ["tmp/"]
+  },
+
+  "secretScan": {
+    "excludePaths": []
+  },
+
+  "modules": {
+    "envDrift": true,
+    "dependencyPins": true,
+    "emojiScan": true,
+    "lintRatchet": false,
+    "tscRatchet": false,
+    "ponytailAck": false,
+    "p0": false
+  },
+
+  "ratchet": {
+    "lint": {
+      "workspaces": [],
+      "baseline": ".planning/audit/lint-baseline.json"
+    },
+    "tsc": {
+      "workspaces": [],
+      "baseline": ".planning/audit/tsc-baseline.json"
+    }
+  },
+
+  "emojiScan": {
+    "allowChars": ["©"],
+    "excludePrefixes": []
+  },
+
+  "dependencyPins": {
+    "file": "scripts/dependency-pins.json"
+  }
+}

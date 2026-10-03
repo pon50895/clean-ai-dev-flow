@@ -77,6 +77,15 @@ AI 角色定義與行為規範：
 
 執行層腳本見 `scripts/colyn-roles/`（不在 SSOT 內，是規範的執行工具）。
 
+### 機器 gate 與測試經驗（由 `scripts/bootstrap.sh` 套進專案）
+
+- `.githooks/pre-commit`、`.githooks/pre-push` 與 `scripts/kit/*` 讀 `.claude/kit.json`：擋 protected branch、擋 force push、secret / emoji / env drift / dependency pins 掃描、lint / tsc ratchet、ponytail 半阻斷、P0 回歸。欄位說明見 `template/README.md` 與 `template/kit.schema.json`。
+- [`BASH_TOOL_GATE.md`](./BASH_TOOL_GATE.md) — Bash 工具的正向分類規則（非瑣碎指令先寫腳本）。
+- [`DEPENDENCY_PINS.md`](./DEPENDENCY_PINS.md) — 被 pin 住的依賴與 pin 檔用法。
+- [`TEST-EXPERIENCE.md`](./TEST-EXPERIENCE.md) — 測試與本機環境的通用坑。
+
+注意：bootstrap 只複製 `dev-rule/`（排除專案專屬的 `LEGAL_COMPLIANCE.md`、`UI_VISUAL_STANDARDS.md`，上文引用到它們處由專案自行建立）、機器 gate 與 `CLAUDE.md` 範本；`scripts/colyn-roles/`、`.claude/skills/`、`.claude/hooks/` 不隨 bootstrap 複製（skill 走使用者層 symlink，hook 走全域掛載）。
+
 ---
 
 ## 8. Sample 配置

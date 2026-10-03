@@ -1,0 +1,145 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "kit.json",
+  "description": "Per-project config read by the portable dev kit: githooks gates (scripts/kit/*) and the global bash-destructive-guard hook. Location: .claude/kit.json (preferred) or kit.json at the repo root. Every field is optional; a missing field means the matching gate is skipped (protectedBranches falls back to main/master).",
+  "type": "object",
+  "additionalProperties": true,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "integer", "const": 1 },
+
+    "commands": {
+      "description": "Project commands. Informational for agents (CLAUDE.md section 2.5 refers to them) and defaults for the gates. lint is the default ratchet lint command per workspace; p0 is run by the pre-commit p0 module.",
+      "type": "object",
+      "properties": {
+        "test": { "type": "string" },
+        "lint": { "type": "string" },
+        "typecheck": { "type": "string" },
+        "build": { "type": "string" },
+        "p0": { "type": "string", "description": "Fast regression command run at pre-commit when modules.p0 is true. Empty = skipped." }
+      },
+      "additionalProperties": { "type": "string" }
+    },
+
+    "protectedBranches": {
+      "description": "Branches that cannot be committed to or pushed to directly. Default: [main, master].",
+      "type": "array",
+      "items": { "type": "string" }
+    },
+
+    "baseRef": {
+      "description": "Ref the diff-scoped pre-push gates compare against. Default: origin/main (falls back to HEAD~1 if absent).",
+      "type": "string"
+    },
+
+    "destructiveGuard": {
+      "description": "Read by the global bash-destructive-guard hook (playbook). Must stay aligned with that hook.",
+      "type": "object",
+      "properties": {
+        "allowPaths": {
+          "description": "Repo-relative path prefixes whose contents are disposable: rm inside them is not blocked. '..' traversal, node_modules and unresolvable targets stay blocked.",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "secretScan": {
+      "description": "Staged-diff secret scan (always on). Extra exclusions beyond the built-ins (*.env.example, the hook itself, SECURITY_ROTATION_SOP.md).",
+      "type": "object",
+      "properties": {
+        "excludePaths": { "type": "array", "items": { "type": "string", "description": "git pathspec glob, e.g. fixtures/**" } }
+      },
+      "additionalProperties": false
+    },
+
+    "modules": {
+      "description": "Optional gate switches. Unset defaults: envDrift, dependencyPins, emojiScan = true (each self-skips when it has no input files); lintRatchet, tscRatchet, ponytailAck, p0 = false.",
+      "type": "object",
+      "properties": {
+        "envDrift": { "type": "boolean", "description": "pre-commit: block .env keys missing from .env.example. Runs only if a tracked .env.example exists." },
+        "dependencyPins": { "type": "boolean", "description": "pre-commit: block bumping a pinned dependency. Runs only when package.json is staged and the pin file exists." },
+        "emojiScan": { "type": "boolean", "description": "pre-commit: R1 no-emoji scan on staged source files." },
+        "lintRatchet": { "type": "boolean", "description": "pre-push: lint count must not exceed baseline. Needs ratchet.lint.workspaces." },
+        "tscRatchet": { "type": "boolean", "description": "pre-push: tsc error count must not exceed baseline. Needs ratchet.tsc.workspaces." },
+        "ponytailAck": { "type": "boolean", "description": "pre-push: code diffs need PONYTAIL_REVIEWED=1 (semi-blocking over-engineering review)." },
+        "p0": { "type": "boolean", "description": "pre-commit: run commands.p0 (skipped for docs-only commits)." }
+      },
+      "additionalProperties": false
+    },
+
+    "ratchet": {
+      "type": "object",
+      "properties": {
+        "lint": {
+          "type": "object",
+          "properties": {
+            "workspaces": {
+              "description": "Directories to lint. '.' = repo root. A string is shorthand for { path }.",
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {
+                      "path": { "type": "string" },
+                      "command": { "type": "string", "description": "Run inside path; must print an ESLint stylish summary ('N problems (E errors, W warnings)'). Default: commands.lint, else 'npm run --silent lint'." }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "baseline": { "type": "string", "description": "Default .planning/audit/lint-baseline.json" }
+          },
+          "additionalProperties": false
+        },
+        "tsc": {
+          "type": "object",
+          "properties": {
+            "workspaces": {
+              "type": "array",
+              "items": {
+                "oneOf": [
+                  { "type": "string" },
+                  {
+                    "type": "object",
+                    "required": ["path"],
+                    "properties": {
+                      "path": { "type": "string" },
+                      "project": { "type": "string", "description": "tsconfig passed to tsc -p. Default tsconfig.json." }
+                    },
+                    "additionalProperties": false
+                  }
+                ]
+              }
+            },
+            "baseline": { "type": "string", "description": "Default .planning/audit/tsc-baseline.json" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+
+    "emojiScan": {
+      "type": "object",
+      "properties": {
+        "allowChars": { "type": "array", "items": { "type": "string" }, "description": "Characters always allowed. Default [\"©\"]." },
+        "excludePrefixes": { "type": "array", "items": { "type": "string" }, "description": "Extra repo-relative path prefixes to skip (built-in: dev-rule/, .planning/, docs/, .claude/, .githooks/)." }
+      },
+      "additionalProperties": false
+    },
+
+    "dependencyPins": {
+      "type": "object",
+      "properties": {
+        "file": { "type": "string", "description": "Pin registry. Default scripts/dependency-pins.json." }
+      },
+      "additionalProperties": false
+    }
+  }
+}

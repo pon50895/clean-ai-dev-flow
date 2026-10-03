@@ -17,7 +17,7 @@
 ### 2.3 執行 (Execute)
 - **精確修改**: 僅更動必要代碼，禁止執行全文件覆蓋。
 - **代碼品質**: 包含詳細註釋，解釋關鍵邏輯。
-- **SSOT**: 共享資源存放在 `packages/shared-content/`（或專案約定位置）。
+- **SSOT**: 共享資源存放在 `packages/shared-content/`。
 
 ### 2.4 驗證 (Verify)
 - **P0 檢核**: 必須通過 Husky 提交鉤子。
@@ -32,10 +32,10 @@
 
 ### 4.1 觸發條件 (When to Use a Worktree)
 凡符合以下任一條件，**必須切 worktree** 以避免污染 `main`：
-- 跨 Wave / 跨模組的多檔修改（例如同時動 server + client + 基礎設施）。
+- 跨 Wave / 跨模組的多檔修改（例如同時動 server + client + nginx）。
 - 風險較高、回滾成本大的功能（DB schema migration、第三方支付、外部服務串接）。
 - 需要在主分支保持可發布狀態的同時，平行開發新功能。
-- 需要 reviewer 在獨立檢視下測試的功能。
+- 需要 reviewer 在獨立檢視下測試的功能（例如諮詢室結束流程）。
 
 可直接在 `main` 上修的情境（**不需切 worktree**）：
 - 單檔 hotfix、文檔更新、UI 文案調整。
@@ -43,30 +43,30 @@
 
 ### 4.2 命名規範 (Naming Convention)
 - 功能分支：`feature/{module}-{slug}`（例：`feature/p1-1-session-closure`）。
-- 修補分支：`fix/{module}-{slug}`（例：`fix/api-token-expiry`）。
+- 修補分支：`fix/{module}-{slug}`（例：`fix/auth-token-expiry`）。
 - 重構分支：`refactor/{area}-{slug}`。
 - 文檔/維運：`chore/{slug}`。
 
 Worktree 目錄統一放在專案上層，命名與分支對齊：
-- 路徑慣例：`../wt-{slug}`（例：`../wt-p1-1-closure`）。
+- 路徑慣例：`../<project>-{slug}`（例：`../<project>-p1-1-closure`）。
 - 禁止把 worktree 放在主專案資料夾內（避免被 IDE 重複索引）。
 
 ### 4.3 標準指令 (Standard Commands)
 建立 worktree：
 ```
-git worktree add ../wt-{slug} -b feature/{module}-{slug}
+git worktree add ../<project>-{slug} -b feature/{module}-{slug}
 ```
 
 切換進入工作：
 ```
-cd ../wt-{slug}
+cd ../<project>-{slug}
 ```
 
 完工後合併（在主專案執行）：
 ```
-cd /path/to/<your-project>
+cd /path/to/<project>
 git merge --no-ff feature/{module}-{slug}
-git worktree remove ../wt-{slug}
+git worktree remove ../<project>-{slug}
 git branch -d feature/{module}-{slug}
 ```
 
@@ -92,7 +92,7 @@ git branch -d feature/{module}-{slug}
 5. **路徑切換**: 確認舊 session 作業路徑後，在回覆開頭以 `[CWD: <絕對路徑>]` 標註，並建議用戶 `cd` 過去（或在工具呼叫使用絕對路徑）。
 6. **stash 殘留檢查**: 同步執行 `git stash list` 確認是否有未取出的進度。
 
-**反例（曾發生）**: 舊 session 在 `../wt-{slug}` 完成 10 個 spec 檔，新 session 啟動於主 worktree 直接 `ls apps/e2e/tests/admin/<spec>.spec.ts` 找不到，誤判為「檔案遺失」。正確做法是先 `git worktree list` 看到平行 worktree 後，去那邊 `ls` 才會發現檔案完整存在。
+**反例（曾發生）**: 舊 session 在 `../<project>-{slug}` 完成 10 個 spec 檔，新 session 啟動於主 worktree 直接 `ls <spec-path>` 找不到，誤判為「檔案遺失」。正確做法是先 `git worktree list` 看到平行 worktree 後，去那邊 `ls` 才會發現檔案完整存在。
 
 ### 4.7 Worktree 退場流程 (Decommission Lifecycle)
 
@@ -104,7 +104,7 @@ git branch -d feature/{module}-{slug}
 p=<worktree-absolute-path>
 git -C "$p" branch --show-current                        # branch 名
 git -C "$p" rev-list --count main..HEAD                  # 領先 main 幾個 commit
-git -C "$p" status --porcelain | grep -v ".husky/_/"     # 過濾 auto-gen 後的真 dirty
+git -C "$p" status --porcelain | grep -v ".githooks/_/"     # 過濾 auto-gen 後的真 dirty
 ```
 
 #### 4.7.2 分類處置
@@ -131,6 +131,6 @@ git -C "$p" status --porcelain | grep -v ".husky/_/"     # 過濾 auto-gen 後�
 - 禁止刪除其他 session 正在使用的 worktree（移除前先 `git worktree list` 並確認）。
 - 禁止在自己當前 cwd 的 worktree 內執行 `git worktree remove .`（先 `cd` 到 main worktree 再操作）。
 
-#### 4.7.5 反例
+#### 4.7.5 反例（2026-05-04 實際發生）
 
-整理多條平行 worktree 時，曾發現某條 worktree 內藏 100+ 行的研究報告未提交。若直接 `worktree remove --force` 就會永久遺失。正確做法：先 `git -C <path> commit` 該檔到對應 branch，再移 worktree。AI 簡略快查見 `.claude/WORKTREE_LIFECYCLE.md`。
+整理 12 個平行 worktree 時，某 worktree 內藏 145 行的研究報告 `INVESTIGATION.md` 未提交。若直接 `worktree remove --force` 就會永久遺失。正確做法：先 `git -C <path> commit` 該檔到對應 branch，再移 worktree。AI 簡略快查見 `.claude/WORKTREE_LIFECYCLE.md`。

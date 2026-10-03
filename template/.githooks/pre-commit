@@ -1,0 +1,170 @@
+#!/usr/bin/env sh
+# .githooks/pre-commit - portable kit gate. Generic segments only; everything is
+# read from kit.json (.claude/kit.json or kit.json) via scripts/kit/kit.mjs.
+# A disabled / unconfigured module is skipped silently.
+#
+# Activation (one-shot per clone; scripts/bootstrap.sh does it):
+#   git config core.hooksPath .githooks
+#
+# Segments                              kit.json                    Escape hatch
+#   1 protected-branch commit block     protectedBranches           ALLOW_MAIN_COMMIT=1
+#   2 staged-diff secret scan           secretScan.excludePaths     ALLOW_SECRET_COMMIT=1
+#   3 env drift                         modules.envDrift
+#   4 dependency pins                   modules.dependencyPins
+#   5 emoji scan (R1)                   modules.emojiScan
+#   6 P0 regression (skip docs-only)    modules.p0 + commands.p0    SKIP_P0_REGRESSION=1
+
+ROOT="$(git rev-parse --show-toplevel)" || exit 1
+cd "$ROOT" || exit 1
+KIT="$ROOT/scripts/kit"
+
+# kit_get <dotted.path>: prints the value; prints nothing when node, scripts/kit
+# or the key is missing (so every gate below degrades to "skip", never to an error).
+kit_get() {
+  [ -f "$KIT/kit.mjs" ] && command -v node >/dev/null 2>&1 || return 0
+  node "$KIT/kit.mjs" get "$1" 2>/dev/null || true
+}
+
+# kit_on <module> <default>: true when modules.<module> (or the default) is "true".
+kit_on() {
+  v="$(kit_get "modules.$1")"
+  [ -n "$v" ] || v="$2"
+  [ "$v" = "true" ]
+}
+
+# --- 1. Block direct commits on protected branches ---------------------------
+PROTECTED_BRANCHES="$(kit_get protectedBranches)"
+[ -n "$PROTECTED_BRANCHES" ] || PROTECTED_BRANCHES="main
+master"
+CURRENT_BRANCH="$(git symbolic-ref --short HEAD 2>/dev/null || echo 'detached')"
+
+for protected in $PROTECTED_BRANCHES; do
+  if [ "$CURRENT_BRANCH" = "$protected" ]; then
+    if [ "$ALLOW_MAIN_COMMIT" = "1" ]; then
+      echo "[pre-commit] WARNING: Committing directly to '$protected' (ALLOW_MAIN_COMMIT=1 set)."
+      break
+    fi
+    echo ""
+    echo "============================================================"
+    echo "[pre-commit] BLOCKED: Cannot commit directly to '$protected'."
+    echo "============================================================"
+    echo ""
+    echo "Branch-first rule (CLAUDE.md section 2.5):"
+    echo "  1. git switch -c <type>/<scope>-<desc>"
+    echo "  2. Re-stage your changes if needed:  git add -A"
+    echo "  3. Commit on the new branch, then open a PR."
+    echo ""
+    echo "Escape hatch (NOT RECOMMENDED):  ALLOW_MAIN_COMMIT=1 git commit ..."
+    echo ""
+    exit 1
+  fi
+done
+
+# --- 2. Secret-scan staged diff (no external deps) ---------------------------
+# Inspects only added lines for high-precision secret formats.
+# Bypass (documented fixtures / already-rotated values only):
+#   ALLOW_SECRET_COMMIT=1 git commit ...
+if [ "$ALLOW_SECRET_COMMIT" = "1" ]; then
+  echo "[pre-commit] WARNING: Skipping secret-scan (ALLOW_SECRET_COMMIT=1 set)."
+else
+  EXTRA_EXCLUDES="$(kit_get secretScan.excludePaths)"
+  set -- ':(exclude)*.env.example' \
+         ':(exclude)*.env.local.example' \
+         ':(exclude)dev-rule/SECURITY_ROTATION_SOP.md' \
+         ':(exclude).githooks/pre-commit'
+  for ex in $EXTRA_EXCLUDES; do
+    set -- "$@" ":(exclude)$ex"
+  done
+  STAGED_DIFF="$(git diff --cached -U0 --no-color -- "$@" \
+    | grep -E '^\+' | grep -Ev '^\+\+\+ ' || true)"
+
+  if [ -n "$STAGED_DIFF" ]; then
+    HITS=""
+    # Each line: PATTERN<TAB>HUMAN_LABEL
+    PATTERNS=$(cat <<'PAT'
+sk-(proj-)?[A-Za-z0-9_-]{20,}	OpenAI API key
+AKIA[0-9A-Z]{16}	AWS access key id
+ASIA[0-9A-Z]{16}	AWS temporary access key id
+ghp_[A-Za-z0-9]{36}	GitHub personal access token (classic)
+github_pat_[A-Za-z0-9_]{82}	GitHub fine-grained PAT
+ghs_[A-Za-z0-9]{36}	GitHub server token
+gho_[A-Za-z0-9]{36}	GitHub OAuth token
+xox[abp]-[A-Za-z0-9-]{10,}	Slack token
+AIza[0-9A-Za-z_-]{35}	Google API key
+-----BEGIN (RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----	Private key block
+eyJ[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}\.[A-Za-z0-9_-]{20,}	JWT token
+PAT
+)
+
+    while IFS="	" read -r pattern label; do
+      [ -z "$pattern" ] && continue
+      MATCHED="$(printf '%s\n' "$STAGED_DIFF" | grep -E -- "$pattern" || true)"
+      if [ -n "$MATCHED" ]; then
+        HITS="${HITS}
+[${label}]
+${MATCHED}
+"
+      fi
+    done <<EOF_PATTERNS
+$PATTERNS
+EOF_PATTERNS
+
+    if [ -n "$HITS" ]; then
+      echo ""
+      echo "============================================================"
+      echo "[pre-commit] BLOCKED: staged diff contains secret-like strings."
+      echo "============================================================"
+      printf "%s\n" "$HITS"
+      echo "If this is a documented test fixture or an already-rotated value:"
+      echo "  ALLOW_SECRET_COMMIT=1 git commit ..."
+      echo "Otherwise: redact + rotate at the provider (dev-rule/SECURITY_ROTATION_SOP.md)."
+      echo ""
+      exit 1
+    fi
+  fi
+fi
+
+# --- 3. Env drift (self-skips when no tracked .env.example) ------------------
+if kit_on envDrift true && [ -f "$KIT/check-env-drift.sh" ]; then
+  bash "$KIT/check-env-drift.sh" || exit 1
+fi
+
+# --- 4. Dependency pins (only when a package.json is staged) -----------------
+if kit_on dependencyPins true && [ -f "$KIT/check-dependency-pins.mjs" ] \
+   && command -v node >/dev/null 2>&1 \
+   && git diff --cached --name-only | grep -q 'package\.json$'; then
+  node "$KIT/check-dependency-pins.mjs" || exit 1
+fi
+
+# --- 5. Emoji red-line scan (R1) on staged files -----------------------------
+if kit_on emojiScan true && [ -f "$KIT/emoji-scan.mjs" ] && command -v node >/dev/null 2>&1; then
+  STAGED_FILES="$(git diff --cached --name-only --diff-filter=ACMR)"
+  if [ -n "$STAGED_FILES" ]; then
+    # shellcheck disable=SC2086
+    echo "$STAGED_FILES" | tr '\n' '\0' | xargs -0 node "$KIT/emoji-scan.mjs" || exit 1
+  fi
+fi
+
+# --- 6. P0 regression (command from kit.json; skipped for docs-only commits) -
+# Docs-only = every staged file is under .planning/ dev-rule/ docs/ .claude/ .githooks/
+# or is a root-level *.md. Dependency / infra files are deliberately NOT exempt.
+P0_CMD="$(kit_get commands.p0)"
+if kit_on p0 false && [ -n "$P0_CMD" ]; then
+  if [ "$SKIP_P0_REGRESSION" = "1" ]; then
+    echo "[pre-commit] WARNING: Skipping P0 regression (SKIP_P0_REGRESSION=1 set)."
+  else
+    STAGED="$(git diff --cached --name-only)"
+    NON_DOCS="$(printf '%s\n' "$STAGED" | grep -vE '^(\.planning/|dev-rule/|docs/|\.claude/|\.githooks/|[^/]+\.md$)' | grep -v '^$' || true)"
+    if [ -n "$STAGED" ] && [ -z "$NON_DOCS" ]; then
+      echo "[pre-commit] Docs-only change - skipping P0 regression."
+    else
+      echo "[pre-commit] Running P0 regression: $P0_CMD"
+      sh -c "$P0_CMD" || {
+        echo "[pre-commit] BLOCKED: P0 regression failed."
+        exit 1
+      }
+    fi
+  fi
+fi
+
+exit 0
