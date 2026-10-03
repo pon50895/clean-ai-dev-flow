@@ -1,24 +1,23 @@
-# GETTING_STARTED — 從 clone 到跑第一個 feature-pipeline
+# GETTING_STARTED — 從 clone 到新專案套用完成
 
-> 目標：在 macOS 上，從零開始，走到「一個新專案已經套用 dev-rule + feature-pipeline，並且成功跑完一次五階段流水線」。
-> 每步都有預期輸出；卡住就對照該步的「若失敗」。
-> 前置工具沒裝齊先看 [`PREREQUISITES.md`](./PREREQUISITES.md)（含一鍵安裝 script）。
-
-全程只用「原生 subagent」路徑（見 README「平行開發兩條路」），不需要 tmux/colyn。這是多數人該停留的路徑。
+> 目標：在 macOS 上，把一個專案接上本套件的「專案層」（CLAUDE.md、kit.json、git hook 骨架、dev-rule），並確認規範生效。
+> 一個指令完成：`bash scripts/bootstrap.sh <target-dir>`。不再手動 cp。
+> 兩個 repo 的分工：skill 與專案範本在本 repo；全域規則、學習迴路與通用 hook 在 playbook（`~/claude-ops-playbook`）。
 
 ---
 
-## 0. 確認前置工具
+## 1. 前置工具
 
 ```bash
 claude --version && gh --version && node --version && git --version
 ```
 
-**預期輸出**：四個版本號都印出來，沒有 `command not found`。任何一個缺 → 先做完 [`PREREQUISITES.md`](./PREREQUISITES.md) 再回來。
+**預期輸出**：四個版本號都印出來。任何一個缺 → 先做完 [`PREREQUISITES.md`](./PREREQUISITES.md)（含一鍵安裝 script）。
+node 只在 git hook 讀 `kit.json` 時用；目標專案不必是 node 專案。
 
 ---
 
-## 1. Clone 本 repo
+## 2. Clone 本 repo
 
 ```bash
 cd ~/Desktop
@@ -27,141 +26,93 @@ cd clean-ai-dev-flow
 ls
 ```
 
-**預期輸出**：看到 `CLAUDE.md`、`dev-rule/`、`.claude/`、`.githooks/`、`scripts/`、`README.md`。
+**預期輸出**：看到 `template/`、`dev-rule/`、`dev/`、`marketing/`、`ops/`、`scripts/`、`README.md`。
 
 ---
 
-## 2. 建立你自己的目標專案
+## 3. 先 dry-run
 
-用一個全新的空目錄示範（已有專案的話跳到步驟 3，把 `~/Desktop/my-app` 換成你的專案路徑）：
+目標專案目錄必須已存在（新專案先 `mkdir` + `git init -b main`）：
 
 ```bash
-mkdir -p ~/Desktop/my-app
-cd ~/Desktop/my-app
-git init -b main
-mkdir -p .planning
+bash scripts/bootstrap.sh ~/Desktop/my-app --dry-run
 ```
 
-**預期輸出**：`git init` 印出 `Initialized empty Git repository in .../my-app/.git/`。
+**預期輸出**：每個檔案一行 `WOULD CREATE: <相對路徑>`，結尾 `summary`，沒有寫入任何東西。
+若出現 `SKIP (exists, differs)`，代表目標已有同名但內容不同的檔案，bootstrap 不會覆蓋它，之後自行手動合併。
 
 ---
 
-## 3. 複製規範層 + 五階段流水線 skill
+## 4. 正式跑
 
 ```bash
-cp -r ~/Desktop/clean-ai-dev-flow/dev-rule ./dev-rule
-mkdir -p .claude/skills .claude/agents .claude/hooks
-cp -r ~/Desktop/clean-ai-dev-flow/.claude/skills/feature-pipeline ./.claude/skills/feature-pipeline
-cp    ~/Desktop/clean-ai-dev-flow/.claude/agents/reviewer.md      ./.claude/agents/reviewer.md
-cp    ~/Desktop/clean-ai-dev-flow/.claude/hooks/*.js              ./.claude/hooks/
-cp -r ~/Desktop/clean-ai-dev-flow/.githooks                       ./.githooks
+bash scripts/bootstrap.sh ~/Desktop/my-app
 ```
 
-**驗證**：
+複製的只有專案層：`CLAUDE.md`、`.claude/kit.json`（與 schema）、`.githooks/`、`scripts/kit/`、`dev-rule/`；並設定 `git config core.hooksPath .githooks`
+（目標若已用 husky，不覆蓋，改印手動合併說明）。
+
+**預期輸出**：`summary: created=N unchanged=0 skipped=0`。**冪等**：再跑一次應為 `created=0`。
+刻意不複製 `.claude/skills/`、`.claude/hooks/`：skill 由使用者層 symlink 提供，hook 由 playbook 全域掛載，專案層再放一份會蓋掉使用者層版本。
+
+---
+
+## 5. 編輯 `.claude/kit.json` 與 CLAUDE.md
+
+- `<目標>/CLAUDE.md`：把尖括號與「(填寫)」處補上（專案名、業務語境、當前里程碑）。
+- `<目標>/.claude/kit.json`：填 `commands.test/lint/typecheck/build`、`ratchet` 的 workspace 清單、`protectedBranches`、`destructiveGuard.allowPaths`、要啟用的 `modules`。
+  欄位說明見 [`template/README.md`](./template/README.md)，型別見 `kit.schema.json`。
+
+---
+
+## 6. user 層 skill symlink（每台機器做一次）
+
+skill 的真檔在本 repo 的 `dev/`、`marketing/`、`ops/`；`~/.claude/skills/<name>` 是指過來的目錄級 symlink，所有專案共用：
 
 ```bash
-test -f dev-rule/AI_INSTRUCTIONS.md && echo "OK: dev-rule copied"
-test -f .claude/skills/feature-pipeline/SKILL.md && echo "OK: feature-pipeline skill copied"
+ln -s ~/Desktop/clean-ai-dev-flow/dev/feature-pipeline ~/.claude/skills/feature-pipeline
+ls -la ~/.claude/skills | grep clean-ai-dev-flow
 ```
 
-**預期輸出**：兩行都印 `OK: ...`。
+其他 skill 同樣模式（`<類別>/<name>`）。完整 22 個對應表見 playbook `README.md`「`~/.claude/skills/*` 對應表」。
+已存在同名真目錄時不要覆蓋，先確認內容再處理。
 
 ---
 
-## 4. 啟用 git hooks（R1 emoji 掃描 + gitleaks 秘密掃描 + push 前測試 gate）
+## 7. 全域 hook（指向 playbook）
 
-```bash
-git config core.hooksPath .githooks
-chmod +x .githooks/pre-commit .githooks/pre-push
-git config core.hooksPath
-```
-
-**預期輸出**：最後一行印出 `.githooks`。這一步是最容易漏的——沒做，`dev-rule/` 裡寫的紅線只是「文件上」的約束，實際不會被機器擋。gitleaks 未安裝時 `pre-commit` 會印警告但不擋 commit（見 `.githooks/pre-commit` 內註解）；要真的擋秘密外洩，去 `PREREQUISITES.md` 裝 gitleaks。
+通用 hook（destructive-guard、git-workflow-guard、agent-model-guard、reminder 類等）的權威在 playbook `hooks/`，
+由 `~/.claude/settings.json` 以絕對路徑全域掛載，所有專案共用，**不要**在專案層再放一份。
+掛載表與建議 diff：`~/claude-ops-playbook/hooks/SETTINGS_MOUNT.md`（改 settings.json 前先確認）。
 
 ---
 
-## 5. 寫最小專案層 CLAUDE.md
-
-新建 `CLAUDE.md`（Write 工具，不要 heredoc）：
-
-```markdown
-# CLAUDE.md — <你的專案名>
-
-啟動時先讀完 `dev-rule/` 全部 `.md`，之後所有工作以 `dev-rule/` 為最高準則，衝突以 dev-rule 為準。
-
-## 業務語境
-<這裡填你的專案在做什麼，一兩段話>
-
-## 當前里程碑
-<這裡填目前在做的 phase / feature>
-```
-
-這份檔案是給你的專案填業務語境用的 placeholder；`dev-rule/` 本身不需要修改。
-
----
-
-## 6. 開 Claude session，確認規範已生效
+## 8. 驗證規範生效
 
 ```bash
 cd ~/Desktop/my-app
+git config core.hooksPath      # 預期 .githooks
 claude
 ```
 
-進入 session 後，第一句話：
+進入 session 後第一句話：
 
 ```
 先讀完 dev-rule/ 全部 .md，之後所有工作以 dev-rule 為最高準則。列出你讀到的紅線 R1-R11 清單確認。
 ```
 
-**預期輸出**：Claude 回覆列出 R1（禁 emoji）到 R11（禁 --no-verify）的清單，且過程沒有卡在 permission prompt（讀 `dev-rule/*.md` 是純讀取，不需要額外權限）。
-
----
-
-## 7. 跑第一個 feature-pipeline
-
-在同一個 session 裡，給一個小而具體的 feature 需求（範例用一個最小可行的玩具功能，換成你真正要做的東西）：
-
-```
-跑開發流水線：幫這個專案加一個 /health 端點，回傳 { "status": "ok" }。這是一個非常小的 feature，
-調研/企劃階段可以精簡，但完整走五階段（調研→企劃→分派開發→驗證→開 PR）並在每個 gate 停下來讓我確認。
-```
-
-Claude 應該會依 `.claude/skills/feature-pipeline/SKILL.md` 的五階段走：
-
-1. **調研 → 企劃**：产出簡短企劃（多小的 feature 也要有取捨說明），停下來要你拍板。
-2. **企劃 → 開發計畫**：把它拆成原子化 Task，寫成 `.planning/phases/<phase>/PLAN.md`，停下來要你過目 PR 拆分。
-3. **依難度分派開發**：在 feature branch（不是 main）上小步 commit；`/health` 這種規模應該用中階模型直接做。
-4. **驗證**：另開一個 fresh-context 的驗證（可用 `.claude/agents/reviewer.md` 這個 subagent），逐項附「檔案:行號」證據。
-5. **開 PR**：驗證過了才 push + 開 PR，且只在你明確要求 RTM（ready to merge）時才轉成 open 狀態。
-
-**驗證每個 gate**：
-
-```bash
-# 步驟 3 之後：確認在 feature branch，不是 main
-git branch --show-current   # 不應印出 main
-
-# 步驟 5 之後（若你已授權開 PR）：
-gh pr list --limit 1
-```
-
-**若卡住**：
+**預期輸出**：Claude 列出 R1（禁 emoji）到 R11（禁 --no-verify）。之後可用 `feature-pipeline` skill 跑第一個五階段流水線（見 `dev/feature-pipeline/SKILL.md`）。
 
 | 症狀 | 可能原因 | 解法 |
 |---|---|---|
-| Claude 直接開始寫 code，跳過調研/計畫 | 需求描述太像「直接做」而非「跑流水線」 | 重新明確說「跑開發流水線」「照 feature-pipeline 五階段做」 |
-| commit 被 pre-commit 擋，說 gitleaks 找到東西 | 真的疑似秘密字串，或誤判 | 真秘密：移除重寫；誤判：見 `.githooks/pre-commit` 內註解，用 `.gitleaks.toml` allowlist |
-| push 被 pre-push 擋，說測試失敗 | 專案沒有 test script，或測試真的紅 | 沒 test script 會直接放行（見 hook 內判斷）；測試真紅要修好才能 push，不可 `--no-verify`（R11） |
-| Claude 想直接在 main 上 commit | 沒先開 feature branch | 提醒它 R9：一律 feature branch + PR |
+| Claude 直接開始寫 code，跳過調研/計畫 | 需求描述太像「直接做」 | 明說「跑開發流水線」「照 feature-pipeline 五階段做」 |
+| commit 被 pre-commit 擋（secret 掃描） | 真秘密或誤判 | 真秘密移除重寫；誤判改 `kit.json` 的 `secretScan.excludePaths` |
+| push 被 pre-push 擋 | 測試真的紅或 ratchet 退步 | 修好才能 push，不可 `--no-verify`（R11） |
+| Claude 想直接在 main 上 commit | 沒先開 feature branch | 提醒 R9：一律 feature branch + PR |
 
 ---
 
-## 8. 收尾檢查
+## 附：進階 tmux fleet（選配）
 
-```bash
-git status --short   # 工作樹是否乾淨
-git log --oneline -5 # 是否都是 feature branch 上的原子化 commit，不是塞在 main
-```
-
-跑到這裡，你已經有一個套用了 dev-rule + feature-pipeline 的專案，走過一次完整五階段。接下來的日常開發重複步驟 6-8 即可；不需要每次都重新 bootstrap。
-
-要進階到多 LLM 供應商的 tmux fleet，回到 `README.md`「進階：tmux fleet」一節。
+只有要同時操控 Claude + Gemini + Codex 等多個獨立 LLM 進程才需要；執行層腳本在 `scripts/colyn-roles/`，說明見 `README.md`「進階：tmux fleet」。
+舊的 `scripts/colyn-roles/bootstrap-to-new-project.sh` 已被 `scripts/bootstrap.sh` 取代，檔案保留但不再是入口。

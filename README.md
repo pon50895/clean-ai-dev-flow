@@ -92,11 +92,14 @@ clean-ai-dev-flow/
 │   ├── agents/reviewer.md             Loop 2 驗證用 subagent
 │   └── hooks/                         PreToolUse hook：redline-guard(R1/R9)、git-readonly-approve
 ├── .githooks/                         pre-commit(gitleaks 秘密掃描)、pre-push(本機測試 gate)
+├── scripts/bootstrap.sh               一鍵套用專案層（冪等、不覆蓋、可 --dry-run）
 ├── scripts/colyn-roles/               tmux fleet 執行層（supervisor/reviewer/worker/tester 腳本）
 ├── marketing/                         行銷 skill 收藏（改造自 coreyhaines31/marketingskills，MIT）
 ├── dev/                               工程訪談 skill 收藏（改造自 mattpocock/skills，MIT）
 ├── SOURCES.md                         採用外部 skill 的出處 / provenance 對照表
-├── GETTING_STARTED.md                 從 clone 到跑第一個 feature-pipeline 的最小路徑
+├── GETTING_STARTED.md                 bootstrap 主流程：從 clone 到專案套用完成
+├── template/                          專案層範本（CLAUDE.md、kit.json、git hook 骨架、scripts/kit）
+├── ops/                               維運 skill 收藏（reap-worktrees 等）
 ├── PREREQUISITES.md                   完整前置需求 + 一鍵安裝腳本
 └── LICENSE                            BSD 3-Clause
 ```
@@ -105,44 +108,39 @@ clean-ai-dev-flow/
 
 ## 如何在自己專案套用
 
-**先看 [`PREREQUISITES.md`](./PREREQUISITES.md) 把工具裝齊**，再照 [`GETTING_STARTED.md`](./GETTING_STARTED.md) 走完整一步步流程（含每步預期輸出）。這裡只列最短路徑：
+**先看 [`PREREQUISITES.md`](./PREREQUISITES.md) 把工具裝齊**，再照 [`GETTING_STARTED.md`](./GETTING_STARTED.md) 走完整流程（含每步預期輸出）。最短路徑：
 
 ```bash
-# 1. 把規範層複製進你的專案
-cp -r ~/Desktop/clean-ai-dev-flow/dev-rule ~/your-project/dev-rule
+# 1. 先 dry-run，確認會建立哪些檔案
+bash scripts/bootstrap.sh ~/your-project --dry-run
 
-# 2. 啟用 git hooks（gitleaks 秘密掃描 + push 前本機測試）
-cd ~/your-project
-git config core.hooksPath .githooks
-cp -r ~/Desktop/clean-ai-dev-flow/.githooks ./.githooks
+# 2. 正式跑（冪等、不覆蓋既有檔、遇衝突列出並跳過）
+bash scripts/bootstrap.sh ~/your-project
 
-# 3. 開一個 Claude session，第一句話叫它讀規範
-claude
-#   對 Claude 說：「先讀完 dev-rule/ 全部 .md，之後所有工作以 dev-rule 為最高準則。」
+# 3. 編輯 ~/your-project/CLAUDE.md 與 ~/your-project/.claude/kit.json（欄位見 template/README.md）
 ```
 
-這樣就有 GSD 四階段 + 紅線 gate。要用完整五階段 feature-pipeline，再複製 `.claude/skills/feature-pipeline/` 過去（見 GETTING_STARTED §4）。要上多進程 tmux fleet，走 `scripts/colyn-roles/bootstrap-to-new-project.sh`（見下方「進階：tmux fleet」）。
+bootstrap 只複製專案層：`CLAUDE.md`、`.claude/kit.json`、`.githooks/`、`scripts/kit/`、`dev-rule/`，並設定 `core.hooksPath`。
+skill 與全域 hook 不複製進專案：
+
+- **skill**：真檔在本 repo 的 `dev/`、`marketing/`、`ops/`，`~/.claude/skills/<name>` 以 symlink 指過來（每台機器做一次，見 GETTING_STARTED §6）。
+- **全域 hook**：權威在 playbook（`~/claude-ops-playbook/hooks/`），掛載見其 `hooks/SETTINGS_MOUNT.md`。
+
+兩個 repo 分工：playbook = 全域規則、學習迴路、通用 hook；本 repo = 通用 skill 與專案範本；專案 repo = 領域專屬內容。
 
 ### 進階：tmux fleet（多 LLM 供應商平行）
 
-只有要同時操控 Claude + Gemini + Codex 等**多個獨立 OS 進程**才需要。一鍵路徑：
+只有要同時操控 Claude + Gemini + Codex 等**多個獨立 OS 進程**才需要。先照上面跑 `scripts/bootstrap.sh`。fleet 執行層 `scripts/colyn-roles/` 尚未併入 bootstrap（不會複製進目標專案），沿用本 repo 內腳本：
 
 ```bash
-INIT_REPO=1 bash scripts/colyn-roles/bootstrap-to-new-project.sh ~/Desktop/<your-new-project>
-```
-
-自動複製 `dev-rule/` + `scripts/colyn-roles/`、替換權限白名單佔位符、（`INIT_REPO=1` 時）`git init` + 建 `.planning/`。完成後：
-
-```bash
-cd ~/Desktop/<your-new-project>
 bash scripts/colyn-roles/install-tools.sh          # 裝 colyn/gsd/karpathy/gitnexus/gitleaks
 bash scripts/colyn-roles/apply-claude-settings.sh  # 部署權限基線
 bash scripts/colyn-roles/start.sh                  # 起 7-role tmux session
 ```
 
-拓撲：`main:0` supervisor（高階模型，仲裁）、`main:1` dispatcher/alarm（監控 idle/CI/drift）、`main:2` reviewer（PR audit）、`main:3-6+` workers（寫碼）、`main:8` tester（中央測試序列化，避免多 worker 撞 docker）。角色 spec 見 `scripts/colyn-roles/role-*.md`。
+舊的 `scripts/colyn-roles/bootstrap-to-new-project.sh` 已被 `scripts/bootstrap.sh` 取代（檔案保留，不再是入口）。
 
-故障排除、smoke test 清單見 `GETTING_STARTED.md` §5。
+拓撲：`main:0` supervisor（高階模型，仲裁）、`main:1` dispatcher/alarm（監控 idle/CI/drift）、`main:2` reviewer（PR audit）、`main:3-6+` workers（寫碼）、`main:8` tester（中央測試序列化，避免多 worker 撞 docker）。角色 spec 見 `scripts/colyn-roles/role-*.md`。
 
 ---
 
