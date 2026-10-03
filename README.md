@@ -93,6 +93,9 @@ clean-ai-dev-flow/
 │   └── hooks/                         PreToolUse hook：redline-guard(R1/R9)、git-readonly-approve
 ├── .githooks/                         pre-commit(gitleaks 秘密掃描)、pre-push(本機測試 gate)
 ├── scripts/colyn-roles/               tmux fleet 執行層（supervisor/reviewer/worker/tester 腳本）
+├── marketing/                         行銷 skill 收藏（改造自 coreyhaines31/marketingskills，MIT）
+├── dev/                               工程訪談 skill 收藏（改造自 mattpocock/skills，MIT）
+├── SOURCES.md                         採用外部 skill 的出處 / provenance 對照表
 ├── GETTING_STARTED.md                 從 clone 到跑第一個 feature-pipeline 的最小路徑
 ├── PREREQUISITES.md                   完整前置需求 + 一鍵安裝腳本
 └── LICENSE                            BSD 3-Clause
@@ -200,3 +203,7 @@ PR 狀態 mutation（merge/close/approve）只 user 能做，worker/agent 不可
 **免責：** 本專案 AS-IS 提供，作者對使用本流程造成的任何後果不負責任。請自行依「紅線」與 `GETTING_STARTED.md` 驗證後再投入正式專案。
 
 > **dev-rule SSOT 的社群慣例（非授權強制）：** fork 後向上游回貢獻 dev-rule 變更，建議 PR 標題加 `[DEV-RULE]`，由人工 review。
+
+### 採用的外部 skill(第三方 MIT）
+
+`marketing/` 與 `dev/` 收藏改造自兩個 MIT-licensed 上游 repo（[coreyhaines31/marketingskills](https://github.com/coreyhaines31/marketingskills)、[mattpocock/skills](https://github.com/mattpocock/skills)），已繁中重寫並對齊命理定位與法遵。MIT 需保留 attribution——完整出處對照見 [`SOURCES.md`](./SOURCES.md) 與各 skill 資料夾內的 `SOURCE.md`。上游 MIT 條款不受本 repo 的 BSD 3-Clause 影響。
