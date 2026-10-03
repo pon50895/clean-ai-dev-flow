@@ -5,6 +5,8 @@
 > 2. Review-Failure Loop — reviewer request-changes 後的收斂流程
 >
 > 修改本檔須在 PR 標註 `[DEV-RULE]`，請用戶 review。
+>
+> *Last revised: 2026-05-07*
 
 ---
 
@@ -22,7 +24,7 @@
 
 | 角色 | Handoff 落點 | 新 session 啟動序列 |
 |------|--------------|-------------------|
-| supervisor (tmux-0) | `.planning/COORDINATOR_HANDOFF_<YYYY-MM-DD-HHMM>.md` | 見 §1.6 六步驟交接協議（舊 coord 自己啟動新 coord + swap window） |
+| supervisor (tmux-0) | `.planning/COORDINATOR_HANDOFF_<YYYY-MM-DD>.md` + `.planning/HANDOFF.json` | `bash scripts/colyn-roles/roles.sh supervisor` → 自動讀 role-card → 接著讀 HANDOFF |
 | alarm (tmux-1) | `.planning/COORDINATOR_LOG.md`（append-only，天然可續）| `bash scripts/colyn-roles/roles.sh alarm` |
 | reviewer (tmux-2) | 進行中 review 留 draft 在 PR；`gh pr list` 自然查得到 | `bash scripts/colyn-roles/roles.sh reviewer` |
 | worker (tmux-3..6) | `/gsd:pause-work` 產出的 phase-level handoff | `/gsd:resume-work`，或新 worker `bash scripts/colyn-roles/roles.sh worker <name>` |
@@ -69,7 +71,7 @@
 
 - **不要在 context 已經壓縮過後才寫 handoff**：壓縮後的 session 已可能失去早期關鍵決策，handoff 內容會殘缺
 - **不要把 handoff 內容直接塞給新 session 當 user message**：會炸 token；新 session 應該在啟動序列裡讀 handoff 文件
-- **handoff 文件的 path 要絕對化**：寫 `apps/server/src/...` 不夠，要 `/absolute/path/to/your-project/apps/server/src/...`，避免 cwd 不一致時找不到
+- **handoff 文件的 path 要絕對化**：寫 `src/...` 不夠，要完整絕對路徑 `/abs/path/to/<project>/src/...`，避免 cwd 不一致時找不到
 
 ---
 

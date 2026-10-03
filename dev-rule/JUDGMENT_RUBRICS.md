@@ -1,7 +1,7 @@
 # 判斷力 Rubrics（JUDGMENT_RUBRICS）
 
-> 交付 D+F。把高階判斷寫成弱模型可打勾執行的清單，每條附正例/反例（皆為去識別化的實務案例）。
-> 配套：`dev-rule/MODEL_DISPATCH.md`（派工）。
+> 交付 D+F。把高階判斷寫成弱模型可打勾執行的清單，每條附正例/反例（取自真實事件；本專案請在此累積自己的案例）。
+> 配套：`dev-rule/MODEL_DISPATCH.md`（派工）、專案的 harness 診斷紀錄（若有）。
 
 ## 1. 何時該升級模型（或把問題還給 user）
 
@@ -10,7 +10,7 @@
 - [ ] 任務涉及**金流正確性 / 併發 / 安全邊界**的「設計」而非「照抄樣板」。
 - [ ] 需要跨 3+ 個模組推理出「改 A 會不會壞 B」且 codebase-memory 的 detect_changes 答不了。
 
-**正例**：唯一鍵並發插入的 race——「交易內 catch 唯一鍵衝突為何無效」是 DB 語義推理 → 高階模型判斷；判完的修法（批量插入設定跳過重複）是樣板，套用可降級。
+**正例**：ledger 併發 race——「tx 內 catch P2002 為何無效」是 PG 語義推理 → 高階模型判斷，判完的修法（`createMany skipDuplicates`）是樣板，套用可降級。
 **反例**：i18n key 填充連錯兩次就升 opus——錯的原因是規格沒寫清楚，該修的是交辦 prompt（補驗收條件），不是升模型。
 
 ## 2. 何時算「真的完成」
@@ -21,22 +21,22 @@
 - [ ] 暫時狀態已收（dev server 關/告知、worktree 清、env flag 還原）或明列在回覆的收尾清單。
 - [ ] 有副作用的動作（deploy/merge/發信）逐一確認過事實結果，不是看指令 exit 0。
 
-**正例**：某排程頁「線上也壞」誤判——curl 抓 SPA 殼看到 404 字串就下結論，瀏覽器真載其實正常。結論：判「壞」與判「好」都要用真瀏覽器。
-**反例**：tsc 綠就 push → 一個只在 production build 才觸發的用法（例如框架對某 hook 的 SSR 限制）讓 prod build 炸掉，本機 tsc 完全看不到。
+**正例**：/daily「線上也壞」誤判——curl 抓 SPA 殼看到 404 字串就下結論，瀏覽器真載其實正常。結論：判「壞」與判「好」都要用真瀏覽器。
+**反例**：tsc 綠就 push → `useSearchParams` 讓 prod `next build` 炸掉（#1990→#1991 事故）。
 
 ## 3. 何時停下來問 user（vs 自決）
 
 **必問**（任一成立）：
 - [ ] 動作不可逆且出了門（prod deploy、對外發布、寄信、刪資料）。**deploy 要 user 明講「deploy/上線」才做**——「ok」只授權問句裡最小的那一步。
-- [ ] 商業/定價/法遵/品牌語感的取捨（對外文案的調性是 owner 層級決定——AI 出草稿、user 定稿）。
+- [ ] 商業/定價/法遵/品牌語感的取捨（文案 voice 是創辦人層級——AI 出草稿、user 定稿）。
 - [ ] 發現的問題超出本次 scope 且修了會改行為（先 surface，不順手修）。
 - [ ] 兩份規格文件互相矛盾。
-- [ ] 改動會**放寬或關閉任何安全/驗證機制**：限流(rate limit)、輸入驗證、簽章/付款簽章驗證、權限/authz 檢查、CSP/CORS、資安掃描器、pre-commit/push hook、Dependabot 類自動化。**收緊可自決，放寬必問**——「測試過不了所以放寬驗證」是事故的開頭，不是修法（另見 §4 停手訊號、CLAUDE.md R5/R11、§2 secrets 清單）。
+- [ ] 改動會**放寬或關閉任何安全/驗證機制**：限流(rate limit)、輸入驗證、簽章/CheckMacValue 驗證、權限/authz 檢查、CSP/CORS、資安掃描器、pre-commit/push hook、Dependabot 類自動化。**收緊可自決，放寬必問**——「測試過不了所以放寬驗證」是事故的開頭，不是修法（另見 §4 停手訊號、CLAUDE.md R5/R11、§2 secrets 清單）。
 
 **自決不問**（問了反而煩）：
-- in-scope 的實作細節、測試怎麼寫、worktree/分支操作、便宜 subagent 派工、文件 drift 的當場修正（**限 §5 表中標「可自改」的檔案；CLAUDE.md / hooks / settings.json 仍需問 user**）。
+- in-scope 的實作細節、測試怎麼寫、worktree/分支操作、便宜 subagent 派工、文件 drift 的當場修正（**限 §5 表中標 OK 的檔案；CLAUDE.md / hooks / settings.json 仍需問 user**）。
 
-**正例**：某個「擋重複提交」需求的擋法有三種 trade-off（全擋 vs 同類擋 vs 只擋處理中）→ 問了，因為它改變用戶行為。
+**正例**：PR-4 擋重複 mandate 的「擋法」有三種 trade-off（全擋 vs 同方案擋 vs 只擋 in-flight）→ 問了，因為它改變用戶行為。
 **反例**：該問而沒問——把「merge+deploy」綁在一句問，user 說 ok 就上了 prod（user 只想要 PR）。一句話一個授權。
 
 ## 4. 什麼訊號代表「方向錯了該換路」（而非重試）
@@ -45,19 +45,21 @@
 - [ ] 為了讓工具動起來開始「繞過安全機制」（--no-verify、skip hook、關掉驗證）→ 立即停，這是方向錯的最強訊號（R11）。
 - [ ] 修 A 引出 B、修 B 引出 C（第三層連鎖）→ 停下來畫因果，多半是根因找錯層。
 - [ ] 開始想「先 merge 再補測試」→ R10 紅線，回頭。
+- [ ] 開始**為判斷題造機制**（為「該不該 X」這類需要判斷的問題蓋 hook / logging / 自動化）→ 停。機制只擋「可由 payload / regex 客觀判定」的行為；判斷題靠 rubric + 人裁。先過 ponytail 第一問「這東西需要存在嗎（YAGNI）」再談怎麼蓋。
 
 **正例**：screencapture 拿不到瀏覽器截圖 → 換路（對話內嵌圖/部署真站），不是試第五種截圖指令。
+**反例**：#2558 為『main 該不該親自下場 vs 派工』這個判斷題造被動 logging hook——機制未驗、也解不了判斷題，被 user 判亂改關掉（2026-07-25，Opus 5 過動實證）。對照可成立的機制：agent-brief-guard（擋「brief 缺紀律段」= payload 可判）、本次提案的 agent-model-guard（擋「model 省略/=opus」= 一條 regex）。
 
 ## 5. 維護協議（F）——這套制度檔怎麼安全演化
 
 | 檔案 | 弱模型可自行改? | 規則 |
 |---|---|---|
-| `MODEL_DISPATCH.md` §1 模型實值表 | 可 | 查證後可更新，commit message 附查證來源 |
-| `MODEL_DISPATCH.md` 其他章節 / 本檔 | 先問 user | 提案 diff 給 user 看過再進 PR |
-| `CLAUDE.md` | 不可 | 依其 footer：PR 標 `[CLAUDE.md]` + user review |
-| 診斷 / 事後檢討檔（dated） | 可（限新增 dated 檔） | 舊診斷不改寫，新事件寫新檔或 memory |
-| memory（`feedback_*`/`project_*`）| 可 | 照既有 memory 慣例；教訓優先寫 memory，重複踩 3 次以上才升格進 dev-rule |
-| hooks / `settings.json` | 不可 | user 核准才動（碰 agent 編排 / 權限的 hook 一律照此） |
+| `MODEL_DISPATCH.md` §1 模型實值表 | OK | 查證後可更新，commit message 附查證來源 |
+| `MODEL_DISPATCH.md` 其他章節 / 本檔 | 注意 先問 user | 提案 diff 給 user 看過再進 PR |
+| `CLAUDE.md` | 禁 | 依其 footer：PR 標 `[CLAUDE.md]` + user review |
+| `.planning/audit/*_DIAGNOSIS_*.md`（若有）| 新增 dated 檔 | 舊診斷不改寫，新事件寫新檔或 memory |
+| memory（`feedback_*`/`project_*`）| OK | 照既有 memory 慣例；教訓優先寫 memory，重複踩 3 次以上才升格進 dev-rule |
+| hooks / `settings.json` | 禁 | user 核准才動（先提案、user 看過 diff 再改） |
 
 **踩雷教訓的落點順序**：memory 一筆（當下）→ 若跨 session 重複發生 → 升格寫進本檔或 MODEL_DISPATCH（走 PR）→ 若可機器化 → 提案做成 hook/lint（走 skillopt 流程）。
 **精簡時機**：本檔或 MODEL_DISPATCH 超過 200 行、或有條目 3 個月沒被引用過 → 跑一次精簡提案給 user。
