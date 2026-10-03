@@ -37,7 +37,7 @@ bash scripts/colyn-roles/start.sh
 ```
 
 **注意**:
-- 透過 `bootstrap-to-new-project.sh` 部署的新專案,**首次 setup 不必跑 apply-claude-settings.sh** —— bootstrap 已直接寫入 target `.claude/`。apply 用於日後 sample 變動時同步。
+- 新專案請用 `bash scripts/bootstrap.sh <target>`(只複製 CLAUDE.md、`.claude/kit.json`、`.githooks`、`scripts/kit`、`dev-rule`,不寫 `.claude/skills` 與 `.claude/hooks`;skill 走 user 層 `~/.claude/skills` symlink、hook 走 playbook 全域掛載)。本資料夾的 sample settings 只用於 clean-ai-dev-flow 自身,bootstrap 不會部署;`apply-claude-settings.sh` 用於 sample 變動後同步本 repo。
 - 在這個 repo(clean-ai-dev-flow)內,`settings.json` 由 git 追蹤,新 worktree `git switch` 後直接取得;只有 `settings.local.json` 需要每個 worktree 各跑一次 `apply` 或讓 `sync-claude-settings.sh` symlink。
 
 ---
@@ -98,7 +98,7 @@ bash scripts/colyn-roles/start.sh
 | `scripts/colyn-roles/install-tools.sh` | 工具鏈 installer + codegraph MCP auto-wire |
 | `scripts/colyn-roles/apply-claude-settings.sh` | sample/settings.local.json → `.claude/settings.local.json` 的 applier |
 | `scripts/colyn-roles/sync-claude-settings.sh` | 把 main 的 settings.local.json symlink 到各 worktree |
-| `scripts/colyn-roles/bootstrap-to-new-project.sh` | 一鍵把整套部署到外部新專案,含 `.claude/` 雙層 |
+| `scripts/bootstrap.sh` | 把專案層(CLAUDE.md、kit.json、.githooks、scripts/kit、dev-rule)套進新專案;驗收見 `scripts/verify-kit.sh` |
 | `split-settings` skill(`~/.claude/skills/split-settings/`)| 對其他 repo 做同樣拆分時的指引 |
 
 ---
