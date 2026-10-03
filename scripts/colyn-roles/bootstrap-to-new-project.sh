@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 #
+# [已被 scripts/bootstrap.sh 取代;檔案保留,不再是入口]
+#
 # bootstrap-to-new-project.sh — 把 clean-ai-dev-flow 的三層架構一鍵套到新專案。
 #
 # 自動做：
