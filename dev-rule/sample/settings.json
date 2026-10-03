@@ -1,5 +1,5 @@
 {
-  "_comment": "Sample .claude/settings.json (shared layer, committed). Deployed by bootstrap-to-new-project.sh to <target>/.claude/settings.json verbatim — no placeholder replacement. Universal allow + ask + ALL deny. Per-developer paths / bypasses / personal tools live in settings.local.json (gitignored). See dev-rule/sample/README.md.",
+  "_comment": "Sample .claude/settings.json (shared layer, committed). Used by this repo only; scripts/bootstrap.sh does not deploy it (target projects get .claude/kit.json instead; skills come from ~/.claude/skills symlinks, hooks from the playbook global mount). Universal allow + ask + ALL deny. Per-developer paths / bypasses / personal tools live in settings.local.json (gitignored). See dev-rule/sample/README.md.",
 
   "_doc_tiers": "Three-tier permission model: allow (auto-approve, no prompt) / ask (always prompt user) / deny (hard block, no prompt). More-specific patterns override less-specific (so Bash(npx playwright:*) in allow wins over Bash(npx:*) in ask). See dev-rule/SECURITY_STANDARDS.md.",
 

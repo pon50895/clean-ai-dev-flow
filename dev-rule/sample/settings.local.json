@@ -1,5 +1,5 @@
 {
-  "_comment": "Sample .claude/settings.local.json (personal layer, gitignored). bootstrap-to-new-project.sh deploys this to <target>/.claude/settings.local.json with /Users/your-name/Desktop/MY-NEW-PROJECT/** placeholders replaced by the real target path. Contains per-developer paths, bypass envs, and personal CLI tools. Universal rules live in settings.json. See dev-rule/sample/README.md.",
+  "_comment": "Sample .claude/settings.local.json (personal layer, gitignored). Applied to this repo by scripts/colyn-roles/apply-claude-settings.sh; scripts/bootstrap.sh does not deploy it to target projects. Contains per-developer paths, bypass envs, and personal CLI tools. Universal rules live in settings.json. See dev-rule/sample/README.md.",
 
   "permissions": {
     "allow": [

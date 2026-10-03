@@ -13,9 +13,10 @@
 **Install** (user-level, applies to all sessions):
 
 ```bash
-git clone https://github.com/forrestchang/andrej-karpathy-skills.git /tmp/karpathy-skills
+# karpathy-guidelines lives in the playbook; expose it at user level via symlink (no cp -R copies).
+# Generic skills of this repo: see scripts/bootstrap.sh header and scripts/skill.sh.
 mkdir -p ~/.claude/skills
-cp -R /tmp/karpathy-skills/skills/karpathy-guidelines ~/.claude/skills/
+ln -s ~/claude-ops-playbook/skills/karpathy-guidelines ~/.claude/skills/karpathy-guidelines
 ls ~/.claude/skills/karpathy-guidelines/SKILL.md  # verify
 ```
 
