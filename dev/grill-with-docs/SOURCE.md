@@ -16,6 +16,6 @@
 ## 我改了什麼
 
 - 全文繁中重寫,並把 `grilling` + `domain-modeling` 機制折進來,使 skill 自足。
-- 接上本專案 GSD **Discuss** 與領域術語紀律;用命理場景舉例(取用神 / 運限四化 / 牌義 / 宮位 / 金流狀態機 / Prisma schema)。
-- 建模動作落本專案位置:術語 → 既有 grounding / SSOT / `packages/shared-content/`;ADR → `.planning/design/` 或 phase PLAN;對照 code 用 codebase-memory。
-- 命理特別注意:命盤=系統規格書非判決書、DB 存 tags+params 不 hardcode doom、對齊 `domain-know-how` 稽核(PM 詞不滲進命理核心)。
+- 接上 GSD **Discuss** 與領域術語紀律;範例改為專案中性(金流狀態機 / schema / API 契約)。
+- 建模動作落專案位置:術語 → 專案既有 grounding / SSOT(讀專案 CLAUDE.md);ADR → 專案設計文件目錄(慣例 `.planning/design/`)或 phase PLAN;對照 code 用 codebase-memory。
+- 領域邊界注意改為通用形式:專案管理 / 行銷詞不滲進領域核心、不自創領域術語、專案若有領域稽核標準就對齊。
