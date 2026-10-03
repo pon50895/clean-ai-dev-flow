@@ -13,7 +13,7 @@
 ## 我改了什麼
 
 - 全文繁中重寫,非照抄。
-- 定位文件落地到本專案路徑 `docs/strategy/PRODUCT_MARKETING_CONTEXT.md`,並綁 `NARRATIVE_PLAYBOOK_FROM_FEEDBACK.md` 為上位 SSOT。
-- 十二節內容全換命理語境:命盤=系統規格書非判決書、賦權非恐嚇、去宿命論、B2C 先行、pre-revenue 口碑期。
-- 加法遵紅線:供應商講「AI」、不宣稱未發生的驗證、不寫死價錢、台灣式去 AI 腔(禁「接住/讀懂」)。
-- 收尾指向 `de-ai-tone` + `journal-preflight-scan` 兩關。
+- 定位文件落地到專案自己的 product-marketing context 文件;十二節保留為空白範本欄位。
+- 加對外文案共通紅線:不製造恐懼逼購、不宣稱未發生的驗證、不寫死價錢、供應商保密(依專案政策)、台灣式去 AI 腔。
+- 2026-10 可移植套件收斂:去除特定產業 / 產品寫死內容(領域名詞、專案文件路徑、專案專屬 skill 引用),定位文件路徑與北極星指標改由專案自己定義。
+- 收尾指向 `de-ai-tone` + 專案自己的 claim 逐條查證流程。
