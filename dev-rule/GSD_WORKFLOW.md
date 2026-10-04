@@ -22,6 +22,7 @@
 ### 2.4 驗證 (Verify)
 - **P0 檢核**: 必須通過 Husky 提交鉤子。
 - **視覺審計**: AI 必須執行物理截圖核對。
+- **事實斷言核對**: 開 PR 前，由非作者的 fresh-context agent 嘗試推翻 PR 在文件 / commit message / PR 描述新增的每句事實或因果敘述；第三方行為無 trace 或原始碼出處則為 `needs_validation`。每句須為 `confirmed`（附證據）、`needs_validation`（寫明未驗事實並在文字照實標示）或刪除。
 - **存檔**: 每次重大功能完成後，必須更新 `ROADMAP.md` 並提交 Commit。
 
 ## 3. 提交規範 (Commit Hygiene)

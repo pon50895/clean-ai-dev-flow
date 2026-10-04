@@ -95,6 +95,7 @@ prod deploy 必須使用者明講「deploy／上線」才執行 —「ok」只�
    - **建置**：`commands.build` 無錯；型別檢查 `commands.typecheck`。
 4. **物理驗證**（UI 變動）：截圖比對、目標頁 200 OK。
 5. **簡化門檻**：開 PR 前對 diff 跑 `/ponytail-review` 拿 delete-list，能砍當下砍、刻意保留標 `ponytail:` 註解。`kit.json` 開啟 `modules.ponytailAck` 時，pre-push 對碰 code 的 diff 半阻斷 push：套完 delete-list 後以 `PONYTAIL_REVIEWED=1 git push` 放行。
+   - **事實斷言門檻**：開 PR 前，派一個沒寫這份改動的 fresh-context agent 去「推翻」PR 在文件、commit message、PR 描述裡新增的每一句事實 / 因果敘述。第三方行為的斷言，沒有擷取到的 trace 或原始碼出處就一律是 `needs_validation`。每句結局三選一：`confirmed`（附證據：`檔案:行號` 或實跑輸出）、`needs_validation`（寫明未驗的那個事實，文字也照實寫「尚未驗證」）、刪除。
 6. **推遠端 + 開 PR**：`git push -u origin <branch>` → `gh pr create --base main --fill`。
 7. **PR 過 CI + Code Review 才 merge**；merge 後刪 feature branch；isolation-agent worktree 一併回收（`git worktree remove`）。判 merged 看 PR 狀態非 SHA。
 
