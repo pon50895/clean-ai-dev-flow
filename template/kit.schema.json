@@ -69,6 +69,19 @@
       "additionalProperties": false
     },
 
+    "ponytail": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "codeExtensions": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[A-Za-z0-9]+$" },
+          "minItems": 1,
+          "description": "File extensions (no dot) whose changes need /ponytail-review before push when modules.ponytailAck is on. Default: ts, tsx, js, jsx. A Python project: [\"py\"]."
+        }
+      }
+    },
+
     "ratchet": {
       "type": "object",
       "properties": {
