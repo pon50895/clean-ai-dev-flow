@@ -145,8 +145,11 @@ fi
 # PONYTAIL_REVIEWED=1 - a deliberate ack that breaks the build->test->push
 # auto-pilot for the one judgment gate machines cannot enforce.
 if kit_on ponytailAck false && [ -n "$BASE_REF" ]; then
+  # What counts as code: kit.json ponytail.codeExtensions (one per line from kit_get); default JS / TS.
+  CODE_EXT="$(kit_get ponytail.codeExtensions | paste -sd'|' -)"
+  [ -n "$CODE_EXT" ] || CODE_EXT="ts|tsx|js|jsx"
   if git diff --name-only --diff-filter=ACMR "$BASE_REF"...HEAD 2>/dev/null \
-     | grep -qE '\.(ts|tsx|js|jsx)$'; then
+     | grep -qE "\.($CODE_EXT)\$"; then
     if [ "$PONYTAIL_REVIEWED" != "1" ]; then
       echo "[pre-push] BLOCKED: code diff detected but /ponytail-review not confirmed."
       echo "[pre-push]   1) run /ponytail-review on this diff; apply the delete-list"
