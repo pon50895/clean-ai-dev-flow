@@ -11,8 +11,8 @@ description: 結束 session / 換手 / context 即將滿時,寫一份「上段�
 
 - **SESSION_HANDOFF ≤ 80 行;STARTUP_PROMPT = 約 100 字的一段話。** 短而有效 > 長而完整(長文檔下段讀不完反而 drift,交接文件要精簡且有效)。
 - 「有效」的定義: 砍掉某行下段會做錯事才留;不會就砍。細節一律指向 PR 號 / spec 路徑。
-- **寫完每份必跑 `wc -l <檔>` 自檢**。超標 → **必須砍**:細節推回 PR / 既有 spec 連結,不在 handoff 複述;同類項合併成一行;刪掉「為完整而完整」的段落。砍到過線才可 commit。
-- **若專案有「違規 / 教訓帳」(例如 `violations.jsonl`),入帳是 commit 前的硬條件。**
+- **寫完每份必跑 `wc -l <檔>` 自檢**。超標 → **必須砍**:細節推回 PR / 既有 spec 連結,不在 handoff 複述;同類項合併成一行;刪掉「為完整而完整」的段落。砍到過線才算完成。
+- **若專案有「違規 / 教訓帳」(例如 `violations.jsonl`),入帳是 handoff 完成前的硬條件。**
   每次犯錯當下入一行(30 秒),「改規則 / 加 gate」留給週期檢討依復發數據決定,不在事故當晚加碼。
   handoff 的必填欄是這條的兜底:寫 handoff 時發現沒入帳,現在補。專案沒有這本帳就略過此條。
 - 寧可少寫、指向 PR 號 / spec 路徑,也不要長。下段助理會自己 `Read` 那些來源。
@@ -189,39 +189,30 @@ ps aux | grep -iE 'claude' | grep -v grep            # 本 repo cwd 的 claude �
 5. **TaskList 清空**（見下）。
 6. **MEMORY.md 大小檢查**：`wc -c "$MEMORY_MD_PATH"`（`~/.claude/projects/<project>/memory/MEMORY.md`）；>20KB（逼近 24.4KB 讀取上限）→ 先跑 `memory-curate` skill(若已安裝)壓縮，別把臃腫索引留給下段。
 
-## 寫完後(預設:handoff 直接 commit + push 進 main,不走 PR;專案不允許就改走 PR)
+## 寫完後(交接文件是 user 個人資產,只留本機,不進任何專案 git)
 
-**handoff 是 docs 不是 code,預設直接 commit + push 進 `main`,不開 PR。** 若專案禁止直接動 main(branch protection / hook),handoff 檔改走專案的一般 PR 流程,並先問 user。
-**沒 push = 只是某 worktree 的未追蹤檔,會擱淺** —— 實際踩過:擱在某個 worktree,主樹開機撈不到,下段被誤導。
-push 進 git 後 `git show origin/main:.planning/HANDOFF/...` 隨時撈得回。
+**不 `git add` / commit / push 交接文件,也不用 `-f` 繞 gitignore。** 交接文件記錄的是 user 與助理的工作狀態,屬於個人資產,不是專案產物(user 2026-10-07 定)。
+擱淺問題靠「一律寫進主樹」解決(見上「固定位置」):下段從主樹開機,讀得到本機檔就夠。
 
-在主樹(`$MAIN_WT`)收尾,一次同步 + 提交 + 更新到當前:
+確保交接目錄不會被誤加進 git —— 專案 `.gitignore` 沒排除時,寫進只屬於本機的 `.git/info/exclude`(不改專案檔):
 
 ```bash
 cd "$MAIN_WT"
-git pull --ff-only origin main            # 主樹更新到當前資料(不再凍;有本機 WIP 擋 ff 就先問 user 怎麼處理,別強推)
-git add "$MAIN_WT/.planning/HANDOFF/SESSION_HANDOFF_<DATE>-PART<N>.md" \
-        "$MAIN_WT/.planning/HANDOFF/STARTUP_PROMPT_<DATE>-PART<N+1>.md"
-# 若專案的 hook 對 main 直接 commit/push 有閘,只用該專案文件明載給 handoff 的正規 escape(例如環境變數);
-# 沒有明載就停手問 user,不繞 hook、不用 --no-verify。
-# commit 用 `-- <pathspec>` 只提交 handoff 兩檔,避免把其他 staged(如 guard WIP)一起帶進 main。
-git commit -m "docs(handoff): SESSION_HANDOFF + STARTUP_PROMPT for <DATE> PART<N>" \
-        -- "$MAIN_WT/.planning/HANDOFF/SESSION_HANDOFF_<DATE>-PART<N>.md" \
-           "$MAIN_WT/.planning/HANDOFF/STARTUP_PROMPT_<DATE>-PART<N+1>.md"
-git push origin main    # 直接進 main,不開 PR
+git check-ignore -q .planning/HANDOFF/x || echo '.planning/HANDOFF/' >> "$(git rev-parse --git-common-dir)/info/exclude"
 ```
 
-**確認真的 landed(務必,不可略)**:
+**確認落地(務必,不可略)**:
 
 ```bash
-git cat-file -e origin/main:.planning/HANDOFF/STARTUP_PROMPT_<DATE>-PART<N+1>.md \
-  && echo "landed" || echo "FAILED — 沒進 git,重推"
-git -C "$MAIN_WT" pull --ff-only origin main   # 主樹再 pull 一次,確認停在當前資料
+test -f "$MAIN_WT/.planning/HANDOFF/SESSION_HANDOFF_<DATE>-PART<N>.md" \
+  && test -f "$MAIN_WT/.planning/HANDOFF/STARTUP_PROMPT_<DATE>-PART<N+1>.md" \
+  && git -C "$MAIN_WT" check-ignore -q .planning/HANDOFF/x \
+  && echo "landed" || echo "FAILED"
 ```
 
 沒印 `landed` 不算 handoff 完成。最後把 startup prompt 路徑回給 user。
 
-(可選)update memory:若本段有任何 回饋級規律(被 user 糾正或定下的紀律),寫進 memory。
+(可選)update memory:若本段有任何 `feedback_*` 級規律(被 user 糾正或定下的紀律),寫進 memory。
 
 ## 反例(別這樣做)
 
@@ -234,5 +225,7 @@ git -C "$MAIN_WT" pull --ff-only origin main   # 主樹再 pull 一次,確認停
 - STARTUP_PROMPT 寫「(某 BG agent)若換手後終止 → 重起」—— 假設終止,下段照做就在同 worktree 重複派工。改寫「先確認活著否,活著就接手不重派」。
 
 ---
+
+*Revised 2026-10-07 — 交接文件改為 user 個人資產,只留主樹本機,不進任何專案 git(不 add/commit/push、不 -f 繞 gitignore);專案沒排除時寫進本機 `.git/info/exclude`;landed 改 `test -f` 檢查。下方 2026-07-18 修訂中「commit + push 直進 main / git cat-file / 主樹 pull」三項已作廢,「一律寫主樹」防擱淺仍有效。*
 
 *Last revised: 2026-07-18 — 修 handoff 擱淺 bug(handoff 寫在某個 worktree,主樹開機撈不到,下段被誤導讀舊檔)。三處改動:(1) 輸出路徑錨定主樹(`MAIN_WT=$(git worktree list --porcelain \| awk '/^worktree /{print $2; exit}')`,跨 worktree 實測指回主樹);(2)「寫完後」改為 commit + push 直進 main 不走 PR + `git cat-file` 確認 landed(handoff docs 的例外);(3) 收尾在主樹 `git pull --ff-only` 更新到當前。全流程用丟棄 branch 實跑通過。*
