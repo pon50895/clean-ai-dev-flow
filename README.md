@@ -42,7 +42,7 @@
 | 1. 調研 → 企劃 | 最高階模型 | `.planning/research/<TOPIC>.md` | user 拍板才進下一階 |
 | 2. 企劃 → 開發計畫 | 中高階模型（指揮官） | `.planning/phases/<phase>/PLAN.md`（原子化 Task + PR 拆分） | 範圍與 PR 拆分給 user 過目 |
 | 3. 依難度分派開發 | 按任務難度選（見 model-dispatch） | feature branch 上的小步 commit | 自帶測試（unit/scoped regression/build）三道門檻 |
-| 4. 驗證 | 中/低階模型，fresh-context，不自驗 | 逐項附「檔案:行號」證據的 review | FAIL 打回第 3 階；PASS-with-nit 若是覆蓋缺口先補 |
+| 4. 驗證 | 依 Door：單向門高階模型 + user 細看、雙向門中階模型，fresh-context，不自驗 | 逐項附「檔案:行號」證據的 review，記到 PR 的審查紀錄 | FAIL 依分流：機械/小範圍正確性就地自修，單向門或需取捨才打回第 3 階 |
 | 5. 開 PR | 中高階模型（指揮官） | open PR（RTM 才開） | user 於 RTM 親自 merge；deploy 需另外明講 |
 
 完整定義（含驗證的維度全集）在 `.claude/skills/feature-pipeline/SKILL.md`；套用方式見下方「如何在自己專案套用」。

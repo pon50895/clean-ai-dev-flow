@@ -1,6 +1,6 @@
 ---
 name: feature-pipeline
-description: 跑一條「調研 → 企劃 → 依難度分派開發 → 驗證 → 開 PR」的多模型開發流水線。研究層用 fable 系列產企劃、opus 系列指揮開發計畫、依難度分派開發(前端→fable、substantive 後端→opus、明確實作→sonnet、機械→haiku)、依難度複驗(sonnet 或 opus,fresh-context)、opus 於 RTM 開 PR。全程仍守專案 CLAUDE.md 原有開發標準(emoji 紅線、branch+test+PR、RTM、ponytail/karpathy)。觸發詞:「開發流水線」「feature pipeline」「跑開發流程」「照標準流程做這個 feature」。
+description: 跑一條「調研 → 企劃 → 依難度分派開發 → 驗證 → 開 PR」的多模型開發流水線。研究層用 fable 系列產企劃、opus 系列指揮開發計畫、依難度分派開發(前端→fable、substantive 後端→opus、明確實作→sonnet、機械→haiku)、依單向門 / 雙向門複驗(單向門 opus + user 細看、雙向門 sonnet,fresh-context;小問題審查者就地自修不再多跑一輪)、opus 於 RTM 開 PR(PR body 標 Door 與 Blast Radius)。全程仍守專案 CLAUDE.md 原有開發標準(emoji 紅線、branch+test+PR、RTM、ponytail/karpathy)。觸發詞:「開發流水線」「feature pipeline」「跑開發流程」「照標準流程做這個 feature」。
 ---
 
 # feature-pipeline
@@ -34,7 +34,7 @@ description: 跑一條「調研 → 企劃 → 依難度分派開發 → 驗證 
 |---|---|---|
 | 設計 + 規劃 | **fable 系列** | 企劃 / 設計系統 / 分批計畫 / 對映表。可再分維度派 subagent |
 | 開發 | fable(前端/UI)/ haiku(最基本/機械)/ sonnet(明確實作)/ opus(substantive 後端:高風險金流·安全·架構與抽象邏輯·領域判斷) | 實作各批,套 ponytail/karpathy |
-| 測試 / 複驗(裁判) | **fresh-context**,依難度 sonnet 或 opus,**非作者** | 每批獨立多維複驗 |
+| 測試 / 複驗(裁判) | **fresh-context**,依 Door 選:單向門 opus、雙向門 sonnet,機械性審查角色一律 sonnet;**非作者** | 每批獨立多維複驗;機械類與小範圍正確性 finding 就地自修(見第 4 階) |
 
 ### 監管鐵律(三層都守)
 - **執行者不當自己裁判**:誰執行、誰就不驗自己那批。每批 push 後一定派 fresh-context 複驗(乾淨 context),綠才 RTM。
@@ -63,10 +63,23 @@ description: 跑一條「調研 → 企劃 → 依難度分派開發 → 驗證 
   - **升級規則:派定的 tier 先做到底,不預設往上換更貴的;只有同一任務連錯 2 次才帶完整失敗軌跡往上升 tier(haiku 錯 1 次即升 sonnet)。** 別一次不成就升;第 2 次錯後不做第 3 次同樣嘗試。
 - **成本序**:fable > opus > sonnet > haiku(價格以 `~/claude-ops-playbook/C-model-dispatch.md` 為準)。**fable 最貴——只用於前端/UI、最高階設計/研究/戰略;非這些用途不預設 fable,複查亦禁預設 fable。** 預設 sonnet、升級 opus,全部用系列名(隨最新版),不釘版本號。
 - 做:各 dev agent 在自己 feature branch 上小步 commit;**每個 code 改動預設套 ponytail(最省解法)+ karpathy(想清楚、精準改、可驗證成功條件)**。平行改共享檔要 worktree 隔離。
+- **給開發 agent 的 brief 必帶「測試規則」段**(照抄,不放專案 CLAUDE.md;完整版在 `code-review` 的 Test shape):
+  ```
+  測試規則(只從對外介面測):
+  - 後端 API 打 HTTP 路由,驗狀態碼 / 回應 / DB 結果;模組只用對外 export 的方法 + 真(測試)DB;前端用 testing-library 依角色與可見文字。
+  - 只可 mock 跨程序外部服務(LLM、物件儲存、送關 / 政府申報、Email、訊息推播),不 mock 自己的內部模組。
+  - 禁:套套邏輯(把實作常數 / 公式抄進測試當預期值)、斷言私有呼叫次數、斷言完整使用者文案字串(改斷言代碼 / 嚴重度)。
+  - 計算類預期值要有獨立來源(官方範例、人工算好的 golden、真實資料),不可在測試裡用同一套公式算。
+  ```
 - **Gate**:寫完自帶測試(專案 CLAUDE.md 的三道測試門檻:unit / scoped regression / build);typecheck 綠、相關 spec 綠。**未寫測試不進驗證。**
 
 ### 4. 驗證(Verify)
-- 模型:**依難度選 sonnet 或 opus**(fresh-context,不自驗;安全敏感/判斷密度高 → opus,機械核對 → sonnet)。**前提:brief 把任務切乾淨、驗收條件具體到 agent 能獨立理解執行,不靠猜。**
+- **先判 Door**(路徑規則強制,不憑感覺):`bash ~/.claude/skills/feature-pipeline/door-check.sh <base> <head>`。內建預設涵蓋 migration / schema、稅費 / 金額計算、金流、auth / RBAC / 租戶、法定檔案(XML)產生器、對外推播、secret、deploy;專案在 `kit.json` `review.oneWayDoorPaths` 補自己的路徑(ERE regex,與預設聯集)。任一檔命中 → 單向門。腳本沒命中但你知道會動 prod 資料或對外送出 → 仍標單向門,並建議把該路徑補進 `kit.json`。
+- 模型(fresh-context,不自驗):
+  - **單向門 → opus 複驗 + PR 標「user 細看」**(user 審 merge 時逐行看,不只看摘要)。
+  - **雙向門 → sonnet 複驗。**
+  - **機械性審查角色(紅線掃描、emoji、格式、license grep、Test shape 檢查)一律 sonnet**,不論 Door。
+  - **前提:brief 把任務切乾淨、驗收條件具體到 agent 能獨立理解執行,不靠猜。**
 - 做:對每個 PR 的 diff 做**多維獨立 review**(fresh-context,不自驗)。**維度全集(每次 review 缺一不可;標「若」的維度,專案沒有該面向時標 N/A 並說明)**:
   1. **功能完整性** — 有沒有做到、邊界/錯誤路徑有沒有顧
   2. **規格符合** — 符 user 拍板的規格與產品核心領域規則
@@ -79,11 +92,32 @@ description: 跑一條「調研 → 企劃 → 依難度分派開發 → 驗證 
   9. **karpathy 工程心法** — 想清楚・簡潔優先・精準修改・目標驅動可驗證(`karpathy-guidelines`)
   10. **ponytail 過度設計** — YAGNI・最省解法・可刪則刪・無投機抽象(`ponytail`)
   另照**專案 CLAUDE.md 紅線**(emoji 規則:code/註釋/log/PR body/UI 全掃,除 review 這一維外亦有機器 gate 擋,雙重防線;全檔覆寫、直接 commit 到受保護分支、`--no-verify` 等同理)+ **測試門檻** + 邏輯正確性。**每維逐條附「檔案:行號」證據,回 PASS / PASS-with-nit / FAIL**。依 PR 性質派對應 reviewer(碰金流→金流/合規 reviewer、碰 UI→視覺驗證 skill、邏輯/效能→品質稽核 agent)。可用 `code-review` / `ponytail` / `karpathy-guidelines`,以及專案自備的領域術語 reviewer(若有)。
-- **Gate**:FAIL → 打回第 3 階修;安全/金流類的「PASS-with-nit」若 nit 是覆蓋缺口,先補再開。
+- **Gate**:FAIL 依 `code-review` 的 Findings triage 分流,不再一律打回第 3 階:
+  - **機械類**(命名、格式、遺留註解 / 工單代號、emoji、文案、測試斷言對齊現行行為)→ 複驗者直接修 → 重跑範圍化測試 → 原子 commit 推回 PR 分支。
+  - **小範圍且修法明確的正確性問題**(含違反測試規則的測試:改寫成介面測試,不可刪)→ 複驗者修 + 補測試 → 另派一次 sonnet read-back → 通過才 commit。
+  - **單向門路徑上的問題或需設計取捨** → 不自修,打回第 3 階(或呈 user),PR 標「需 user 判斷」。
+  - 每次自修把「問題 / 修法 / commit sha / 測試輸出」補到 PR(comment + description 的 `## 審查紀錄` 段;Bitbucket 用 `git-gh-ops/bitbucket/` 兩支腳本)。
+  - 安全/金流類的「PASS-with-nit」若 nit 是覆蓋缺口,先補再開。
 
 ### 5. 開 PR(Ship)
 - 模型:**opus 系列**(推 PR 狀態)。
-- 做:確認「可上線」(驗證通過 + typecheck/test 實跑綠 + mergeable)後,推分支、開 PR,於 **RTM** 轉 open(`gh pr ready`)。PR body 遵守專案 CLAUDE.md 的 emoji 規則(含 harness 預設附加的 Generated-with 標語:專案禁 emoji 就刪掉或換成純文字);多 PR 疊放用 stacked(base 指前一個分支)。
+- 做:確認「可上線」(驗證通過 + typecheck/test 實跑綠 + mergeable)後,推分支、開 PR,於 **RTM** 轉 open(`gh pr ready`)。PR body 至少含以下段落(Door 取自第 4 階 `door-check.sh` 的結果):
+  ```markdown
+  ## Summary
+  <改了什麼;用最小的圖 / 樹 / diff 草圖說清楚>
+
+  ## Evidence
+  <測試 / build / 截圖的實跑輸出,before / after>
+
+  ## Door
+  單向 | 雙向 —— <單向:命中的路徑 + 為什麼難回滾;標「user 細看」>
+
+  ## Blast Radius
+  <一個詞:例 局部 / 模組 / 跨模組 / 全站 / 對外> —— <merge 後可能波及什麼>
+
+  ## 審查紀錄
+  - <YYYY-MM-DD> <reviewer model> <PASS|FIXED|BLOCK|FLAG> <sha 或 -> <一句摘要>
+  ```PR body 遵守專案 CLAUDE.md 的 emoji 規則(含 harness 預設附加的 Generated-with 標語:專案禁 emoji 就刪掉或換成純文字);多 PR 疊放用 stacked(base 指前一個分支)。
 - **Gate**:**PR 只在 RTM 開 open**,user 於 RTM 親自 merge(以專案流程為準)。**prod deploy 需 user 明講「deploy/上線」才做**,預設止於 PR。
 
 ## Gate 對照:誰驗、何時驗
@@ -109,4 +143,4 @@ description: 跑一條「調研 → 企劃 → 依難度分派開發 → 驗證 
 - **驗證不自驗**:寫的人不驗自己;交付附證據(檔案:行號 / 實跑輸出)。
 
 ## 一句話流程
-fable/opus 調研出企劃 → user 拍板 → opus 拆 PLAN → 依難度派 haiku/sonnet/opus/fable 開發(套 ponytail/karpathy)→ sonnet 或 opus fresh-context 驗證(專案紅線+測試門檻)→ 通過後 opus 於 RTM 開 open PR → user 親自 merge → deploy 需明講。
+fable/opus 調研出企劃 → user 拍板 → opus 拆 PLAN → 依難度派 haiku/sonnet/opus/fable 開發(套 ponytail/karpathy)→ 判 Door(door-check.sh)→ 雙向門 sonnet / 單向門 opus fresh-context 驗證(專案紅線+測試門檻;小問題就地自修並記到 PR)→ 通過後 opus 於 RTM 開 open PR(標 Door / Blast Radius) → user 親自 merge → deploy 需明講。
