@@ -1,15 +1,17 @@
 ---
 name: code-review
-description: Audit a PR per the project's CLAUDE.md red lines + test gate. Verdict (PASS/BLOCK/FLAG) goes in a PR comment, with a 4-section guidance block on BLOCK; PR open/draft state follows the RTM rule (feature-pipeline), this skill does not change it. 觸發詞:「審 PR」「code review」「PR 稽核」「幫我看這個 PR」「檢查 PR 合不合規」「這個 PR 能過嗎」「紅線稽核」。
+description: Audit a PR per the project's CLAUDE.md red lines + test gate, then triage findings - mechanical and small clear-cut correctness issues are fixed by the reviewer on the PR branch (one review round, not review-then-dispatch-then-reverify), one-way-door or design-tradeoff issues go back marked 需 user 判斷. Verdict (PASS/FIXED/BLOCK/FLAG) and every self-fix are recorded on the PR (comment + 審查紀錄 line in the description, GitHub or Bitbucket). PR open/draft state follows the RTM rule (feature-pipeline), this skill does not change it. 觸發詞:「審 PR」「code review」「PR 稽核」「幫我看這個 PR」「檢查 PR 合不合規」「這個 PR 能過嗎」「紅線稽核」。
 ---
 
 # code-review
 
-Single-responsibility skill: audit one PR against the project's red lines + test gate, post the verdict as a PR comment.
+Single-responsibility skill: audit one PR against the project's red lines + test gate, fix what is safe to fix in place (see Findings triage), record the verdict and fixes on the PR.
 
 Project-specific values come from the project, not this file: red-line list and test-gate wording from the project `CLAUDE.md`; test / lint / typecheck / build commands and workspace names from `kit.json`. Red-line numbers below are written as "the project's red line on X" because numbering differs per project; cite the project's own number in the verdict.
 
-If `kit.json` `prHost` is `bitbucket`: input is the PR's branch, not a number; translate every `gh` command below with the table in `git-gh-ops` (PR host: bitbucket), and report the verdict in chat instead of a PR comment.
+If `kit.json` `prHost` is `bitbucket`: input is the PR's branch plus its numeric PR id (from the PR URL); translate every `gh` command below with the table in `git-gh-ops` (PR host: bitbucket). Recording on the PR uses `~/.claude/skills/git-gh-ops/bitbucket/comment-pr.sh` (verdict comment) and `update-pr.sh` (審查紀錄 line); if the PR id is unknown or the scripts are blocked by the permission classifier, fall back to reporting in chat and say so.
+
+Model: the mechanical layers (1-4, test-shape check, license grep) run on **sonnet**. One-way-door PRs (see `feature-pipeline` Door rule, `door-check.sh`) get the correctness / security judgement on **opus**.
 
 ## When to invoke
 
@@ -54,6 +56,26 @@ Read the project's red-line table first and audit every row. The checks below ar
 - [ ] Unit/component test: PR description checks typecheck / build / scoped tests green AND git log has `test(...)` commit
 - [ ] Scoped regression / E2E: relevant specs cover changed feature OR the project's external-dependency tag is applied (anti-deadlock policy in CLAUDE.md)
 - [ ] Build: the `kit.json` build command for the changed workspace, run in the PR's worktree
+- [ ] Test shape: new / changed tests test only through the public interface (rules below)
+
+#### Test shape: only through the public interface
+
+Tests that pin implementation details turn red on every harmless change and push the next agent into a fix-reverify loop. Every new / changed test in the diff must fit:
+
+- **Backend API**: hit the HTTP route; assert status code, response body, and resulting DB state.
+- **Module**: call only what the module exports, against the real (test) DB.
+- **Frontend**: testing-library queries by role and visible text, not component internals.
+- **Mock only cross-process external services**: LLM, object storage, government / customs filing gateway, email, message push. Never mock the project's own internal modules.
+- **Forbidden**:
+  - tautological tests: copying an implementation constant or formula into the test as the expected value;
+  - mocking the project's own internal modules;
+  - asserting call counts of private / internal functions;
+  - asserting a full user-facing message string (assert the code / severity / key instead).
+- **Calculation expected values need an independent source**: an official worked example, a hand-computed golden, or real data. Never compute the expected value in the test with the same formula as the code.
+
+Example (2026-10-07, real project): a test asserted the full Chinese text of a validation-issue message; when the message switched to integer display it went red every time, while the behaviour was fine. Asserting the issue code + severity would have stayed green.
+
+A violating test is a **small correctness** finding (see Findings triage): rewrite it as an interface test, then commit. Never just delete it.
 
 ### Layer 3: Scope flags
 
@@ -114,32 +136,66 @@ Triggers (any path match; adapt the globs to the project layout in CLAUDE.md / k
 - Any unfixed code-path security issue → **BLOCK** with `[SEC]` tag
 - Pinning / FLAG-tier issues → **FLAG** (advisory, doesn't block merge)
 
+## Findings triage(審查者自修分流)
+
+目的:一個小問題只跑一輪。舊流程「審查只回報 → 再派開發修 → 再派複驗」一個 typo 也要三輪 agent,吃掉大量 token。審查者先分類每個 finding,能安全就地修的就修:
+
+| 類型 | 例 | 處理 |
+|---|---|---|
+| **機械類** | 命名、格式、遺留註解 / 工單代號、emoji、文案、測試斷言對齊現行行為(行為沒變、只是斷言過時) | 審查者直接修 → 重跑範圍化測試(受影響 spec + typecheck)→ 原子 commit 推回 PR 分支 → 記錄到 PR |
+| **小範圍正確性** | 修法明確、只動 1-2 檔、不碰單向門路徑:漏掉的邊界、錯的條件、違反 Test shape 的測試(改寫成介面測試,不可刪) | 審查者修 + 補 / 改測試 → **另派一次 fresh-context sonnet read-back**(看 diff + 實跑測試,不採信審查者自述;審查者是 subagent 不能再派時,由 orchestrator 代派)→ read-back 通過才 commit 推回 → 記錄到 PR |
+| **單向門 / 需設計取捨** | 稅費 / 金額 / 法定檔案(XML)計算、權限 / 租戶隔離、migration / schema、金流、prod 資料、對外推播;或修法不只一種、要選方向 | **不自修**。BLOCK 打回,comment 標頭與審查紀錄都標「需 user 判斷」,附選項與取捨 |
+
+判定單向門:跑 `bash ~/.claude/skills/feature-pipeline/door-check.sh <base> <head>`(路徑規則,專案在 `kit.json` `review.oneWayDoorPaths` 補自己的路徑)。finding 所在檔案命中 → 一律走第三列,即使修法看起來很小。
+
+自修紀律:
+- 在 PR 自己的 worktree / 分支上修;先 `git -C <wt> status --short` 確認乾淨,有別人的 WIP 就不修、改成 BLOCK。
+- 每個 finding 一個原子 commit(Conventional Commits,描述寫問題 + 修法),一律新 commit,不 `--amend`、不 force push、不 `--no-verify`。
+- 測試沒過、或修一次沒修好 → 停手,改走 BLOCK(不做第二次同樣嘗試)。
+- 自修過的 PR 仍維持 RTM 原狀:不 merge、不改 open/draft。
+
+## Recording on the PR(審查紀錄補到 PR)
+
+每次審查結束、每個自修 commit,都補到 PR 上,不只在對話回報:
+
+1. **Comment**(verdict 全文):格式見下方 PASS / FIXED / BLOCK / FLAG;FIXED 逐條列「問題 / 修法 / commit sha / 測試輸出摘錄」。
+2. **Description 的 `## 審查紀錄` 段追加一行**:`<YYYY-MM-DD> <reviewer model> <VERDICT> <sha 或 -> <一句摘要>`(BLOCK 需 user 判斷的寫「需 user 判斷: <議題>」)。段落不存在則建立在 description 末尾。
+
+| | GitHub | Bitbucket(`kit.json` `prHost: bitbucket`) |
+|---|---|---|
+| comment | `gh pr comment <N> --body-file <f>` | `~/.claude/skills/git-gh-ops/bitbucket/comment-pr.sh <remote> <id> <f>` |
+| 審查紀錄 | `gh pr view <N> --json body --jq .body > <scratch>/cur.md`,用 Edit 在 `## 審查紀錄` 段尾加一行存 `<scratch>/new.md`,`gh pr edit <N> --body-file <scratch>/new.md` | `~/.claude/skills/git-gh-ops/bitbucket/update-pr.sh <remote> <id> "<line>"` |
+
+Bitbucket 腳本支援 `DRY_RUN=1`(只印 method / URL / payload,不讀憑證不送出);第一次在新專案使用先 dry run。被權限 classifier 擋下時不繞過,改在對話回報並告知 user 加 allow rule(見 `git-gh-ops`)。
+
 ## Decision matrix
 
 PR 開 OPEN 的時機由 RTM 紀律決定(PR 只在 RTM 開 OPEN,見 `feature-pipeline`);本 skill 只出 verdict,不改 PR 的 open/draft 狀態。
 
-Always use a file-based comment body: `gh pr comment <N> --body-file <file>`, with the file placed in the session scratchpad (or the project's tmp dir), not inline.
+Always use a file-based comment body (`--body-file` / the Bitbucket script's body file), with the file placed in the session scratchpad (or the project's tmp dir), not inline.
 
 **Write the verdict file with the Write tool, NOT a bash heredoc / cat / printf** — any shell-substitution form triggers a permission dialog and gets flaky on backticks. The Write tool has zero dialogs.
 
-**Also do not use** `gh pr review --approve` / `--request-changes` — a shared GitHub credential blocks self-review; the verdict header (PASS/BLOCK/FLAG) lives in the comment body.
+**Also do not use** `gh pr review --approve` / `--request-changes` — a shared GitHub credential blocks self-review; the verdict header (PASS/FIXED/BLOCK/FLAG) lives in the comment body.
 
-**Standard audit flow (2 steps, 0 dialogs)**:
-1. Write tool → `<scratch>/<n>-verdict.md` (audit full text + verdict header)
-2. `bash gh pr comment <N> --body-file <scratch>/<n>-verdict.md` (single line, no substitution)
+**Standard audit flow**:
+1. Audit (Layers 1-5) → triage findings → self-fix the fixable ones (commits pushed to the PR branch)
+2. Write tool → `<scratch>/<n>-verdict.md` (audit full text + verdict header)
+3. Post the comment + append the 審查紀錄 line (table above)
 
 | Outcome | Condition | Action |
 |---|---|---|
-| **PASS** | red lines clear + 3 test gates clear | `gh pr comment` (verdict header PASS) |
-| **BLOCK** | Any red-line fail OR test gate unchecked OR test output missing | `gh pr comment` with the 4-section guidance; PR state untouched |
-| **FLAG** | LOC > 500 / scope creep / non-blocking flag | `gh pr comment` listing the flag, does not block merge |
+| **PASS** | red lines clear + 3 test gates clear, no findings | comment (verdict header PASS) + 審查紀錄 |
+| **FIXED** | every finding was mechanical / small correctness and is now fixed, tests re-run green (small correctness: sonnet read-back passed) | comment listing 問題 / 修法 / sha / 測試輸出 + 審查紀錄; no re-review round needed |
+| **BLOCK** | any finding left unfixed: one-way door / design trade-off (標「需 user 判斷」), self-fix failed, red-line fail, test gate unchecked, test output missing | comment with the 4-section guidance + 審查紀錄; PR state untouched |
+| **FLAG** | LOC > 500 / scope creep / non-blocking flag | comment listing the flag + 審查紀錄, does not block merge |
 
 ## BLOCK comment 4-section format (mandatory)
 
 ```
-[BLOCK] test gate / red-line violation
+[BLOCK] test gate / red-line violation | 需 user 判斷: <議題>   (pick the matching header)
 
-Reason: <which test gate / project red line failed>
+Reason: <which test gate / project red line failed, or the one-way-door / trade-off question with options>
 
 Evidence:
 - <commit hash> / <file:line> of the change
@@ -157,29 +213,32 @@ Re-audit after the fix.
 
 ## Allowlist coverage
 
-- `Bash(gh pr view *)`, `Bash(gh pr diff *)`, `Bash(gh pr checks *)`, `Bash(gh pr comment * --body *)`
+- `Bash(gh pr view *)`, `Bash(gh pr diff *)`, `Bash(gh pr checks *)`, `Bash(gh pr comment * --body *)`, `Bash(gh pr edit * --body-file *)`
 - `Bash(git -C * log *)`, `Bash(git -C * diff *)`
+- `Bash(~/.claude/skills/git-gh-ops/bitbucket/comment-pr.sh:*)`, `Bash(~/.claude/skills/git-gh-ops/bitbucket/update-pr.sh:*)`, `Bash(bash ~/.claude/skills/feature-pipeline/door-check.sh:*)` (user adds these; the Bitbucket ones touch credentials)
 - File paths read for source verification (Read tool)
 
 ## Constraints
 
 - **NEVER** auto-merge a PR ("I open, the user merges")
-- **NEVER** modify the PR's code during review (write feedback in the PR comment, let the author fix)
+- Modify the PR's code only per Findings triage (mechanical / small correctness, never a one-way-door path); everything else goes back as BLOCK
 - Use the PR's worktree for typecheck/build verification, not a fresh /tmp checkout (a cold checkout needs a full install and stalls the audit)
 - Run tests in mock mode if integration env not available (the project's anti-deadlock policy)
 
 ## Reply protocol
 
 - PASS → reply: `PR #<N> DONE — red lines ok, test gate ok, LOC <X>` (1 line)
-- BLOCK → reply: `PR #<N> BLOCK — <one-line reason>` + post comment
+- FIXED → reply: `PR #<N> FIXED — <k> findings self-fixed (<sha list>), tests green` + post comment
+- BLOCK → reply: `PR #<N> BLOCK — <one-line reason>` (or `需 user 判斷: <議題>`) + post comment
 - FLAG → reply: `PR #<N> FLAG — <flag reason>` + post comment
 
 ## Related skills
 
 - `pr-conflict-solver`: pre-step if mergeable=CONFLICTING
-- `git-gh-ops`: provides primitives (pr-comment-block)
+- `git-gh-ops`: provides primitives (pr-comment-block, Bitbucket comment / description scripts)
+- `feature-pipeline`: Door rule (`door-check.sh`) and who re-verifies
 
 ## Examples
 
 User: "review #155"
-→ pre-flight + Layer 1-5 audit → decision (PASS/BLOCK/FLAG) → post comment
+→ pre-flight + Layer 1-5 audit → triage → self-fix mechanical / small correctness → decision (PASS/FIXED/BLOCK/FLAG) → comment + 審查紀錄 line
