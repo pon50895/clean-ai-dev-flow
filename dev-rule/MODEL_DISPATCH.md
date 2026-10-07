@@ -114,6 +114,6 @@
 把「調研 → 企劃 → 依難度分派開發 → 驗證 → 開 PR」串成標準流程，用哪個模型跑哪一階見
 `.claude/skills/feature-pipeline/SKILL.md`（可用觸發詞「feature pipeline / 跑開發流水線」叫起）。
 一句話：Fable 調研出企劃 → user 拍板 → Opus 拆 PLAN →
-依任務難度派 haiku/sonnet/opus 開發（套 ponytail/karpathy）→ Sonnet/Haiku fresh-context 驗證
+依任務難度派 haiku/sonnet/opus 開發（套 ponytail/karpathy）→ 依 Door 驗證（雙向門 Sonnet、單向門 Opus + user 細看；機械性審查一律 Sonnet；小問題審查者就地自修）fresh-context
 （R1-R11 + §2.5 測試門檻）→ 通過後 Opus 於 RTM 開 open PR → user 親自 merge → deploy 需明講。
 本檔 §1 模型表是該 skill 選模型的依據。

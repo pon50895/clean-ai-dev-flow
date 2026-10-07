@@ -59,6 +59,19 @@
       "additionalProperties": false
     },
 
+    "review": {
+      "description": "Read by feature-pipeline / code-review (dev/feature-pipeline/door-check.sh) to classify a PR as a one-way or two-way door.",
+      "type": "object",
+      "properties": {
+        "oneWayDoorPaths": {
+          "description": "Extra ERE regexes on repo-relative paths that make a diff a one-way door, added to the built-in defaults in door-check.sh (migrations, schema, tax, payments, auth/RBAC, XML generators, outbound notifications, secrets, deploy). Use for project-specific calculation / compliance code, e.g. \"(^|/)modules/orders/pricing/\".",
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": false
+    },
+
     "modules": {
       "description": "Optional gate switches. Unset defaults: envDrift, dependencyPins, emojiScan = true (each self-skips when it has no input files); lintRatchet, tscRatchet, ponytailAck, p0 = false.",
       "type": "object",
