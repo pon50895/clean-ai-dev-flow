@@ -15,9 +15,12 @@
 
 ### 0.1 核心必讀
 
-1. `.planning/PROJECT.md` — 當前狀態精簡版（若尚未建立，先問使用者是否要建）。
-2. 最新 `.planning/HANDOFF/SESSION_HANDOFF_<YYYY-MM-DD>-PART<N>.md`（若存在）— 上一段交接。接續舊 session 先 `git worktree list` 對齊：summary 提到的檔案在當前 cwd 找不到，**禁止**判定「檔案遺失」，先到其他 worktree 路徑確認。
-3. `.planning/learning/violations.jsonl`（若存在）— 跨 session 學習紀錄。
+1. 最新 `.planning/HANDOFF/SESSION_HANDOFF_<YYYY-MM-DD>-PART<N>.md`（若存在）— 上一段交接，也是專案現況的來源。開機 hook（`~/claude-ops-playbook/scripts/session-learning-inject.sh`）已自動注入，換手時仍要讀全文。接續舊 session 先 `git worktree list` 對齊：summary 提到的檔案在當前 cwd 找不到，**禁止**判定「檔案遺失」，先到其他 worktree 路徑確認。
+2. `.planning/PROJECT.md`（選用，存在才讀）— 當前狀態精簡版。不存在時以上一條的 SESSION_HANDOFF 為準，**不要問**是否要建（多一份現況檔要和 HANDOFF 同步，容易漂移）。
+3. 違規紀錄，分兩本帳；開機 hook 會合併兩本，把復發 >= 3 次的規則注入：
+   - **共用帳** `~/claude-ops-playbook/learning/violations.jsonl` — 換到別的專案還會犯的錯（agent 的工作習慣、流程），例：heredoc 和 git commit 同一條指令、檢驗跑突變時改它測的檔。
+   - **專案帳** `.planning/learning/violations.jsonl`（不存在就建）— 只有這個專案會遇到的錯（它的工具、環境、領域）。
+   - 寫哪本只問一句：**換到別的專案還會犯嗎？** 會 → 共用帳；不會 → 專案帳。每筆加 `"scope": "shared"` 或 `"scope": "<專案名>"`，不可留空。共用帳只收共用教訓，才不會跟著專案一直變長。
 
 讀完不必複誦，但回答須體現上述事實。
 
