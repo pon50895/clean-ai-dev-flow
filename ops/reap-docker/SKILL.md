@@ -12,17 +12,17 @@ description: 清理本機 docker 累積的臨時容器、dangling image、懸空
 1. assistant 跑 dry-run(唯讀,不動任何東西):
 
 ```
-bash ~/.claude/skills/reap-docker/reap-docker.sh
+bash ${CLAUDE_SKILL_DIR}/reap-docker.sh
 ```
 
 2. 判決表給 user 看,特別點出「保留」裡的 compose 專案容器與「懸空具名 volume」,讓 user 確認沒有要留的臨時容器被列進可砍。
 3. 給 user 這條自己跑:
 
 ```
-bash ~/.claude/skills/reap-docker/reap-docker.sh --apply
+bash ${CLAUDE_SKILL_DIR}/reap-docker.sh --apply
 ```
 
-額外保留某些容器:`KEEP='l-a-pg l-a-redis' bash ~/.claude/skills/reap-docker/reap-docker.sh --apply`
+額外保留某些容器:`KEEP='l-a-pg l-a-redis' bash ${CLAUDE_SKILL_DIR}/reap-docker.sh --apply`
 
 ## 判決規則(user 問才說)
 

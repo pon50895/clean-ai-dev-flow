@@ -106,6 +106,50 @@ clean-ai-dev-flow/
 
 ---
 
+## 以 plugin 安裝(不影響既有 skill)
+
+`dev/` 與 `ops/` 的 skill 可以包成 Claude Code plugin `dev-flow` 安裝,不必手動做 symlink。`marketing/` 不收進 plugin。
+
+```text
+/plugin marketplace add pon50895/clean-ai-dev-flow
+/plugin install dev-flow@clean-ai-dev-flow
+```
+
+| 動作 | 指令 |
+|---|---|
+| 更新(plugin.json 有 version,版本號變了才會收到更新) | `/plugin marketplace update clean-ai-dev-flow` |
+| 解除安裝 | `/plugin uninstall dev-flow@clean-ai-dev-flow` |
+| 單 session 試載(不安裝) | `claude --plugin-dir <repo>/plugins/dev-flow` |
+| 驗證 manifest | `claude plugin validate plugins/dev-flow` 與 `claude plugin validate .` |
+
+**與既有 skill 並存**:plugin 的 skill 叫用名是 `/dev-flow:<skill>`(例如 `/dev-flow:feature-pipeline`),帶命名空間,不會覆蓋或取代你自己同名的 skill 與 hooks。plugin 也不含任何 hook、不改 settings。
+
+### 內容
+
+20 支 skill:`dev/` 全部(agent-dispatch、code-review、dev-rule-curate、feature-pipeline、git-gh-ops、grill-me、grill-with-docs、handoff、improve-codebase-architecture、memory-curate、pr-conflict-solver、skillopt、systematic-debugging、to-spec、to-tickets、writing-great-skills)+ `ops/` 全部(planning-archive-sweep、reap-docker、reap-worktrees、session-bootstrap-reconcile)。`plugins/dev-flow/skills/<name>` 是指向 `dev/<name>`、`ops/<name>` 的相對 symlink,單一來源;安裝時 Claude Code 會把 marketplace 內的 symlink 展開成實體檔。
+
+### skill 引用慣例
+
+實測(Claude Code 2.1.292,`claude -p --plugin-dir` 搭 `--setting-sources project` 隔離 user 層 skill):
+
+1. skill 本文只寫裸名(例如「用 `to-spec` skill」)時:plugin 內沒有同名衝突則模型會叫用到 plugin 版(實際叫用名 `tp:refb-unique`)。
+2. 使用者另有同名 skill 時,裸名引用會被解析到使用者自己的那支,不是 plugin 版。
+3. 本文寫明「若由 plugin `<name>` 叫用(叫用名帶 `<name>:` 前綴),就用 `<name>:<skill>` 叫用,否則用裸名」,則兩種安裝(plugin / 一般 skill 目錄)都能叫用到正確的那支,衝突時也是。
+
+慣例:一般提到其他 skill 用裸名;**必須叫用到同套版本的關鍵引用**(例如 code-review 依賴 feature-pipeline 的判定規則)才加第 3 點的句式。腳本路徑一律用 `${CLAUDE_SKILL_DIR}`(實測在 plugin 與一般 skill 目錄都會被替換;同套的兄弟 skill 用 `${CLAUDE_SKILL_DIR}/../<skill>/...`)。注意 `${CLAUDE_SKILL_DIR}` 只在 SKILL.md 本文替換,settings.json 的 permission 規則與 Bash 環境變數裡沒有,permission 規則要寫實際路徑。
+
+### 作者本機從 symlink 遷移(只寫步驟,不自動執行)
+
+目前 `~/.claude/skills/<name>` 是指向本 repo 的 symlink。若改用 plugin,兩者並存會讓同一支 skill 的描述出現兩次(一份裸名、一份 `dev-flow:` 前綴),重複佔 context。步驟:
+
+1. 先驗證:`claude --plugin-dir <repo>/plugins/dev-flow`,確認 `/dev-flow:feature-pipeline` 等可叫用、腳本路徑可執行。
+2. 安裝:`/plugin marketplace add pon50895/clean-ai-dev-flow`,`/plugin install dev-flow@clean-ai-dev-flow`。
+3. 由使用者自行移除 `~/.claude/skills/` 下指向本 repo 的 symlink(只刪 symlink,不動 repo 本體):`ls -l ~/.claude/skills | grep clean-ai-dev-flow` 列出後逐一 `rm <symlink>`。`marketing/` 的 skill 不在 plugin 內,其 symlink 保留。
+4. 若有 permission 規則寫了 `~/.claude/skills/...` 路徑,改成 plugin 快取的實際路徑。
+5. 日後改 skill:在 repo 改、bump `plugin.json` 的 version、push,再 `/plugin marketplace update`。
+
+---
+
 ## 如何在自己專案套用
 
 **先看 [`PREREQUISITES.md`](./PREREQUISITES.md) 把工具裝齊**，再照 [`GETTING_STARTED.md`](./GETTING_STARTED.md) 走完整流程（含每步預期輸出）。最短路徑：

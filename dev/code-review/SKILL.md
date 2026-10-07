@@ -9,7 +9,7 @@ Single-responsibility skill: audit one PR against the project's red lines + test
 
 Project-specific values come from the project, not this file: red-line list and test-gate wording from the project `CLAUDE.md`; test / lint / typecheck / build commands and workspace names from `kit.json`. Red-line numbers below are written as "the project's red line on X" because numbering differs per project; cite the project's own number in the verdict.
 
-If `kit.json` `prHost` is `bitbucket`: input is the PR's branch plus its numeric PR id (from the PR URL); translate every `gh` command below with the table in `git-gh-ops` (PR host: bitbucket). Recording on the PR uses `~/.claude/skills/git-gh-ops/bitbucket/comment-pr.sh` (verdict comment) and `update-pr.sh` (審查紀錄 line); if the PR id is unknown or the scripts are blocked by the permission classifier, fall back to reporting in chat and say so.
+If `kit.json` `prHost` is `bitbucket`: input is the PR's branch plus its numeric PR id (from the PR URL); translate every `gh` command below with the table in `git-gh-ops` (PR host: bitbucket). Recording on the PR uses `${CLAUDE_SKILL_DIR}/../git-gh-ops/bitbucket/comment-pr.sh` (verdict comment) and `update-pr.sh` (審查紀錄 line); if the PR id is unknown or the scripts are blocked by the permission classifier, fall back to reporting in chat and say so.
 
 Model: the mechanical layers (1-4, test-shape check, license grep) run on **sonnet**. One-way-door PRs (see `feature-pipeline` Door rule, `door-check.sh`) get the correctness / security judgement on **opus**.
 
@@ -146,7 +146,7 @@ Triggers (any path match; adapt the globs to the project layout in CLAUDE.md / k
 | **小範圍正確性** | 修法明確、只動 1-2 檔、不碰單向門路徑:漏掉的邊界、錯的條件、違反 Test shape 的測試(改寫成介面測試,不可刪) | 審查者修 + 補 / 改測試 → **另派一次 fresh-context sonnet read-back**(看 diff + 實跑測試,不採信審查者自述;審查者是 subagent 不能再派時,由 orchestrator 代派)→ read-back 通過才 commit 推回 → 記錄到 PR |
 | **單向門 / 需設計取捨** | 稅費 / 金額 / 法定檔案(XML)計算、權限 / 租戶隔離、migration / schema、金流、prod 資料、對外推播;或修法不只一種、要選方向 | **不自修**。BLOCK 打回,comment 標頭與審查紀錄都標「需 user 判斷」,附選項與取捨 |
 
-判定單向門:跑 `bash ~/.claude/skills/feature-pipeline/door-check.sh <base> <head>`(路徑規則,專案在 `kit.json` `review.oneWayDoorPaths` 補自己的路徑)。finding 所在檔案命中 → 一律走第三列,即使修法看起來很小。
+判定單向門:跑 `bash ${CLAUDE_SKILL_DIR}/../feature-pipeline/door-check.sh <base> <head>`(路徑規則,專案在 `kit.json` `review.oneWayDoorPaths` 補自己的路徑)。finding 所在檔案命中 → 一律走第三列,即使修法看起來很小。
 
 自修紀律:
 - 在 PR 自己的 worktree / 分支上修;先 `git -C <wt> status --short` 確認乾淨,有別人的 WIP 就不修、改成 BLOCK。
@@ -163,8 +163,8 @@ Triggers (any path match; adapt the globs to the project layout in CLAUDE.md / k
 
 | | GitHub | Bitbucket(`kit.json` `prHost: bitbucket`) |
 |---|---|---|
-| comment | `gh pr comment <N> --body-file <f>` | `~/.claude/skills/git-gh-ops/bitbucket/comment-pr.sh <remote> <id> <f>` |
-| 審查紀錄 | `gh pr view <N> --json body --jq .body > <scratch>/cur.md`,用 Edit 在 `## 審查紀錄` 段尾加一行存 `<scratch>/new.md`,`gh pr edit <N> --body-file <scratch>/new.md` | `~/.claude/skills/git-gh-ops/bitbucket/update-pr.sh <remote> <id> "<line>"` |
+| comment | `gh pr comment <N> --body-file <f>` | `${CLAUDE_SKILL_DIR}/../git-gh-ops/bitbucket/comment-pr.sh <remote> <id> <f>` |
+| 審查紀錄 | `gh pr view <N> --json body --jq .body > <scratch>/cur.md`,用 Edit 在 `## 審查紀錄` 段尾加一行存 `<scratch>/new.md`,`gh pr edit <N> --body-file <scratch>/new.md` | `${CLAUDE_SKILL_DIR}/../git-gh-ops/bitbucket/update-pr.sh <remote> <id> "<line>"` |
 
 Bitbucket 腳本支援 `DRY_RUN=1`(只印 method / URL / payload,不讀憑證不送出);第一次在新專案使用先 dry run。被權限 classifier 擋下時不繞過,改在對話回報並告知 user 加 allow rule(見 `git-gh-ops`)。
 
@@ -215,7 +215,7 @@ Re-audit after the fix.
 
 - `Bash(gh pr view *)`, `Bash(gh pr diff *)`, `Bash(gh pr checks *)`, `Bash(gh pr comment * --body *)`, `Bash(gh pr edit * --body-file *)`
 - `Bash(git -C * log *)`, `Bash(git -C * diff *)`
-- `Bash(~/.claude/skills/git-gh-ops/bitbucket/comment-pr.sh:*)`, `Bash(~/.claude/skills/git-gh-ops/bitbucket/update-pr.sh:*)`, `Bash(bash ~/.claude/skills/feature-pipeline/door-check.sh:*)` (user adds these; the Bitbucket ones touch credentials)
+- `Bash(<skills-dir>/git-gh-ops/bitbucket/comment-pr.sh:*)`, `Bash(<skills-dir>/git-gh-ops/bitbucket/update-pr.sh:*)`, `Bash(bash <skills-dir>/feature-pipeline/door-check.sh:*)` (user adds these in settings, where `${CLAUDE_SKILL_DIR}` is not substituted: `<skills-dir>` is `~/.claude/skills` for a symlink install, or the plugin cache path shown by the permission prompt for a plugin install; the Bitbucket ones touch credentials)
 - File paths read for source verification (Read tool)
 
 ## Constraints
