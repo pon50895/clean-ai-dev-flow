@@ -95,7 +95,7 @@ description: 跑一條「調研 → 企劃 → 依難度分派開發 → 驗證 
 - **Gate**:FAIL 依 `code-review` 的 Findings triage 分流,不再一律打回第 3 階:
   - **機械類**(命名、格式、遺留註解 / 工單代號、emoji、文案、測試斷言對齊現行行為)→ 複驗者直接修 → 重跑範圍化測試 → 原子 commit 推回 PR 分支。
   - **小範圍且修法明確的正確性問題**(含違反測試規則的測試:改寫成介面測試,不可刪)→ 複驗者修 + 補測試 → 另派一次 sonnet read-back → 通過才 commit。
-  - **單向門路徑上的問題或需設計取捨** → 不自修,打回第 3 階(或呈 user),PR 標「需 user 判斷」。
+  - **`[high-risk]` 檔案上的問題或需設計取捨** → 不自修(`[unclassified]` 依 code-review 前兩列處理),打回第 3 階(或呈 user),PR 標「需 user 判斷」。
   - 每次自修把「問題 / 修法 / commit sha / 測試輸出」補到 PR(comment + description 的 `## 審查紀錄` 段;Bitbucket 用 `git-gh-ops/bitbucket/` 兩支腳本)。
   - 安全/金流類的「PASS-with-nit」若 nit 是覆蓋缺口,先補再開。
 
