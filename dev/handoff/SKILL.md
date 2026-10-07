@@ -191,6 +191,10 @@ ps aux | grep -iE 'claude' | grep -v grep            # 本 repo cwd 的 claude �
 
 ## 寫完後(預設:handoff 直接 commit + push 進 main,不走 PR;專案不允許就改走 PR)
 
+**先看專案開關**:`jq -r '.handoff.commit // true' "$MAIN_WT/kit.json"`(或 `.claude/kit.json`)。
+- `false`(專案 `.gitignore` 刻意不收交接文件,例:去識別化)→ **只寫主樹 `.planning/HANDOFF/` 本機檔,不 `git add -f` / commit / push**;landed 檢查改為 `test -f` 兩檔都在主樹。下段從主樹開機照樣讀得到。不可用 `-f` 繞 gitignore。
+- `true` 或未設 → 照下面流程 commit + push。
+
 **handoff 是 docs 不是 code,預設直接 commit + push 進 `main`,不開 PR。** 若專案禁止直接動 main(branch protection / hook),handoff 檔改走專案的一般 PR 流程,並先問 user。
 **沒 push = 只是某 worktree 的未追蹤檔,會擱淺** —— 實際踩過:擱在某個 worktree,主樹開機撈不到,下段被誤導。
 push 進 git 後 `git show origin/main:.planning/HANDOFF/...` 隨時撈得回。

@@ -64,6 +64,18 @@
       "additionalProperties": false
     },
 
+    "handoff": {
+      "description": "Read by the handoff skill.",
+      "type": "object",
+      "properties": {
+        "commit": {
+          "description": "false = handoff docs stay as local files in the main tree (project .gitignore excludes them); the skill must not git add -f / commit / push. Default true.",
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+
     "review": {
       "description": "Read by feature-pipeline / code-review (dev/feature-pipeline/door-check.sh) to classify a PR as a one-way or two-way door.",
       "type": "object",
