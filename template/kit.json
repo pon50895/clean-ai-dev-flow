@@ -22,6 +22,10 @@
     "excludePaths": []
   },
 
+  "review": {
+    "oneWayDoorPaths": []
+  },
+
   "modules": {
     "envDrift": true,
     "dependencyPins": true,
