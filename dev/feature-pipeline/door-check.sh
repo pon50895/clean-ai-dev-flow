@@ -4,8 +4,14 @@
 # auth/RBAC/tenant isolation, statutory file generators (XML), outbound notifications, secrets, deploy/infra.
 # Usage (inside the repo): door-check.sh [base-ref] [head-ref]
 #   base-ref default: kit.json baseRef, else origin/main. head-ref default: HEAD.
-# Project additions: kit.json review.oneWayDoorPaths = ["<ERE regex on repo-relative path>", ...] (added to the defaults below).
-# Output: "Door: one-way" + matched paths, or "Door: two-way". Exit 0 either way; 2 on usage/git error.
+# Default is one-way: a diff is two-way only when every changed file matches a two-way rule
+# (docs, .planning, tests, locales, images, styles). A missed rule then costs an extra opus review,
+# never a skipped one. Each one-way file is tagged:
+#   [high-risk]    matches a one-way rule below - reviewer must not self-fix (code-review).
+#   [unclassified] matches neither list - reviewed as one-way; sort it into a list at the weekly skillopt.
+# Project additions (ERE regexes on repo-relative paths, added to the defaults below):
+#   kit.json review.oneWayDoorPaths, review.twoWayDoorPaths. A one-way rule wins over a two-way rule.
+# Output: "Door: one-way" + tagged paths, or "Door: two-way". Exit 0 either way; 2 on usage/git error.
 set -euo pipefail
 
 root="$(git rev-parse --show-toplevel)" || exit 2
@@ -34,20 +40,40 @@ rules=(
   '(^|/)\.env'
   '(^|/)(secrets?|deploy|infra)(/|[._-])'
 )
+two_way_rules=(
+  '\.md$'
+  '(^|/)\.planning/'
+  '(^|/)docs?/'
+  '(^|/)__tests__/'
+  '\.(test|spec)\.[cm]?[jt]sx?$'
+  '(^|/)e2e/'
+  '(^|/)locales?/'
+  '\.(png|jpe?g|gif|svg|webp|ico)$'
+  '\.(css|scss)$'
+)
 if [ -n "$kit" ]; then
   while IFS= read -r extra; do [ -n "$extra" ] && rules+=("$extra"); done \
     < <(jq -r '.review.oneWayDoorPaths // [] | .[]' "$kit")
+  while IFS= read -r extra; do [ -n "$extra" ] && two_way_rules+=("$extra"); done \
+    < <(jq -r '.review.twoWayDoorPaths // [] | .[]' "$kit")
 fi
+
+first_match() { # first_match <file> <rule>... -> prints the matching rule, exit 1 if none
+  local file="$1" rule; shift
+  for rule in "$@"; do
+    printf '%s\n' "$file" | grep -Eq -- "$rule" && { printf '%s' "$rule"; return 0; }
+  done
+  return 1
+}
 
 matched=""
 while IFS= read -r file; do
   [ -n "$file" ] || continue
-  for rule in "${rules[@]}"; do
-    if printf '%s\n' "$file" | grep -Eq -- "$rule"; then
-      matched+="  $file   <- $rule"$'\n'
-      break
-    fi
-  done
+  if rule="$(first_match "$file" "${rules[@]}")"; then
+    matched+="  [high-risk] $file   <- $rule"$'\n'
+  elif ! first_match "$file" "${two_way_rules[@]}" >/dev/null; then
+    matched+="  [unclassified] $file"$'\n'
+  fi
 done < <(git diff --name-only "$base"..."$head")
 
 if [ -n "$matched" ]; then
