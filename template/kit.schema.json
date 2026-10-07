@@ -27,6 +27,11 @@
       "items": { "type": "string" }
     },
 
+    "prHost": {
+      "description": "Where PRs live. github = use gh; bitbucket = gh does not apply, PR skills translate via git (see git-gh-ops). Default: github.",
+      "enum": ["github", "bitbucket"]
+    },
+
     "baseRef": {
       "description": "Ref the diff-scoped pre-push gates compare against. Default: origin/main (falls back to HEAD~1 if absent).",
       "type": "string"

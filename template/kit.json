@@ -12,6 +12,7 @@
 
   "protectedBranches": ["main", "master", "release"],
   "baseRef": "origin/main",
+  "prHost": "github",
 
   "destructiveGuard": {
     "allowPaths": ["tmp/"]
