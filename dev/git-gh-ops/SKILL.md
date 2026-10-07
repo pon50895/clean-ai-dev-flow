@@ -19,9 +19,12 @@ Read `kit.json` `prHost` first. Missing or `github` -> the gh commands below app
 | `gh pr view <N> --json headRefName,...` | ask the user for the branch, or read it off the PR page; there is no CLI lookup |
 | `gh pr diff <N> [-- <paths>]` | `git diff <remote>/<base>...<remote>/<branch> [-- <paths>]` |
 | `gh pr create` | the `bitbucket-pr` skill |
-| `gh pr comment` | report the verdict in chat; the user posts it if they want it on the PR |
+| `gh pr comment <N> --body-file <f>` | `~/.claude/skills/git-gh-ops/bitbucket/comment-pr.sh <remote> <id> <f>` |
+| `gh pr edit <N> --body-file <f>` (append to the `## 審查紀錄` section) | `~/.claude/skills/git-gh-ops/bitbucket/update-pr.sh <remote> <id> "<line>"` |
 | `gh pr list --state ...` | `git branch -r --merged <remote>/<base>` for merged; open-PR state needs the PR page or `bitbucket-pr` |
 | `gh pr ready` / draft | not applicable (no draft PRs) |
+
+The two Bitbucket scripts read the same credential file as `bitbucket-pr` (`~/.claude/secrets/bitbucket.env`), pass it to curl via stdin config (never in argv or output), and take `<id>` = the numeric PR id from the PR URL. `DRY_RUN=1` prints method, URL and payload without reading credentials or calling the API (`update-pr.sh` also takes `DRY_RUN_DESCRIPTION_FILE=<f>` to preview the append). They live here, not in `bitbucket-pr`, because that skill is not version-controlled and this skill already owns the gh-to-Bitbucket translation. If the auto-mode classifier blocks them as credential access, do not work around it: ask the user to add an allow rule (`Bash(~/.claude/skills/git-gh-ops/bitbucket/comment-pr.sh:*)`, same for `update-pr.sh`) or fall back to reporting in chat.
 
 ## Operations covered
 
