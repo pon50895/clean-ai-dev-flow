@@ -146,7 +146,7 @@ Triggers (any path match; adapt the globs to the project layout in CLAUDE.md / k
 | **小範圍正確性** | 修法明確、只動 1-2 檔、不碰單向門路徑:漏掉的邊界、錯的條件、違反 Test shape 的測試(改寫成介面測試,不可刪) | 審查者修 + 補 / 改測試 → **另派一次 fresh-context sonnet read-back**(看 diff + 實跑測試,不採信審查者自述;審查者是 subagent 不能再派時,由 orchestrator 代派)→ read-back 通過才 commit 推回 → 記錄到 PR |
 | **單向門 / 需設計取捨** | 稅費 / 金額 / 法定檔案(XML)計算、權限 / 租戶隔離、migration / schema、金流、prod 資料、對外推播;或修法不只一種、要選方向 | **不自修**。BLOCK 打回,comment 標頭與審查紀錄都標「需 user 判斷」,附選項與取捨 |
 
-判定單向門:跑 `bash ${CLAUDE_SKILL_DIR}/../feature-pipeline/door-check.sh <base> <head>`(路徑規則,專案在 `kit.json` `review.oneWayDoorPaths` 補自己的路徑)。finding 所在檔案命中 → 一律走第三列,即使修法看起來很小。
+判定單向門:跑 `bash ${CLAUDE_SKILL_DIR}/../feature-pipeline/door-check.sh <base> <head>`(預設單向門,只有全部檔案命中雙向門清單才是雙向門;專案在 `kit.json` `review.oneWayDoorPaths` / `review.twoWayDoorPaths` 補路徑)。finding 所在檔案標 `[high-risk]` → 一律走第三列,即使修法看起來很小;標 `[unclassified]` → 可依前兩列自修(read-back 照常),並在審查紀錄註明該檔未分類,留給週 skillopt 歸類。
 
 自修紀律:
 - 在 PR 自己的 worktree / 分支上修;先 `git -C <wt> status --short` 確認乾淨,有別人的 WIP 就不修、改成 BLOCK。

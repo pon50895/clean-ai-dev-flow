@@ -188,6 +188,8 @@ gate-fires 週週照樣觸發 = 那道 gate 在擋,但行為沒內化 —— 那
 
 ### 8. 垃圾 sweep + 成本三指標(附掛在週循環,不另設儀式)
 
+**Door 清單歸類**:對過去一週 merged PR 跑 `door-check.sh <base> <merge>`,把每個 `[unclassified]` 檔歸進 `kit.json` `review.oneWayDoorPaths`(難收回:金額 / 計量 / 對外單據 / 狀態機 / 權限)或 `review.twoWayDoorPaths`(好收回),用目錄層 regex 不用單檔;拿不準的列給 user 裁。結果記 ledger(本週未分類檔數,應逐週下降)。
+
 **垃圾**:merged worktree 自清;**非 merged 的、prod 上的垃圾檔 → 列清單給 user**
 (rm 是 user 地盤,列清單由 user 自己刪)。
 

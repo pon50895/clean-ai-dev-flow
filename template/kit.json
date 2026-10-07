@@ -23,7 +23,8 @@
   },
 
   "review": {
-    "oneWayDoorPaths": []
+    "oneWayDoorPaths": [],
+    "twoWayDoorPaths": []
   },
 
   "modules": {

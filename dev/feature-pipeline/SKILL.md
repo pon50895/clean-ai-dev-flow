@@ -74,7 +74,7 @@ description: 跑一條「調研 → 企劃 → 依難度分派開發 → 驗證 
 - **Gate**:寫完自帶測試(專案 CLAUDE.md 的三道測試門檻:unit / scoped regression / build);typecheck 綠、相關 spec 綠。**未寫測試不進驗證。**
 
 ### 4. 驗證(Verify)
-- **先判 Door**(路徑規則強制,不憑感覺):`bash ${CLAUDE_SKILL_DIR}/door-check.sh <base> <head>`。內建預設涵蓋 migration / schema、稅費 / 金額計算、金流、auth / RBAC / 租戶、法定檔案(XML)產生器、對外推播、secret、deploy;專案在 `kit.json` `review.oneWayDoorPaths` 補自己的路徑(ERE regex,與預設聯集)。任一檔命中 → 單向門。腳本沒命中但你知道會動 prod 資料或對外送出 → 仍標單向門,並建議把該路徑補進 `kit.json`。
+- **先判 Door**(路徑規則強制,不憑感覺):`bash ${CLAUDE_SKILL_DIR}/door-check.sh <base> <head>`。內建預設涵蓋 migration / schema、稅費 / 金額計算、金流、auth / RBAC / 租戶、法定檔案(XML)產生器、對外推播、secret、deploy;**預設單向門**:只有全部檔案命中雙向門清單(文件 / `.planning` / 測試 / 多語系 / 圖檔 / 樣式,加 `kit.json` `review.twoWayDoorPaths`)才是雙向門;漏列的代價是多跑一次 opus,不是漏審。單向門檔案分 `[high-risk]`(命中上述預設或 `review.oneWayDoorPaths`,審查者不可自修)與 `[unclassified]`(兩邊都沒命中,照單向門複驗)。`[unclassified]` 由週 skillopt step 8 歸類進兩份清單之一。
 - 模型(fresh-context,不自驗):
   - **單向門 → opus 複驗 + PR 標「user 細看」**(user 審 merge 時逐行看,不只看摘要)。
   - **雙向門 → sonnet 複驗。**

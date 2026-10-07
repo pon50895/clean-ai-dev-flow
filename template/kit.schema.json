@@ -45,6 +45,11 @@
           "description": "Repo-relative path prefixes whose contents are disposable: rm inside them is not blocked. '..' traversal, node_modules and unresolvable targets stay blocked.",
           "type": "array",
           "items": { "type": "string" }
+        },
+        "twoWayDoorPaths": {
+          "description": "Extra ERE regexes on repo-relative paths that are safe to reverse (reviewed as a two-way door), added to the built-in two-way defaults in door-check.sh (docs, .planning, tests, locales, images, styles). Every file not matched by either list is one-way ([unclassified]). A one-way rule wins.",
+          "type": "array",
+          "items": { "type": "string" }
         }
       },
       "additionalProperties": false
