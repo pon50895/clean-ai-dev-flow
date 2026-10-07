@@ -1,0 +1,8 @@
+{
+  "name": "dev-flow",
+  "description": "通用 AI 開發流程 skill:調研到 PR 的 feature-pipeline、PR 稽核、需求訪談、交接、subagent 派工紀律、worktree/docker 回收等",
+  "version": "0.1.0",
+  "author": { "name": "pon50895" },
+  "repository": "https://github.com/pon50895/clean-ai-dev-flow",
+  "license": "BSD-3-Clause"
+}

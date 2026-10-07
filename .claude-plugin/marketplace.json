@@ -1,0 +1,12 @@
+{
+  "name": "clean-ai-dev-flow",
+  "owner": { "name": "pon50895" },
+  "metadata": { "description": "通用 AI 開發流程 skill 集:feature-pipeline、code-review、handoff 等" },
+  "plugins": [
+    {
+      "name": "dev-flow",
+      "source": "./plugins/dev-flow",
+      "description": "開發與維運 skill(dev/ + ops/):feature-pipeline、code-review、grill-me、to-spec、handoff、agent-dispatch 等"
+    }
+  ]
+}
