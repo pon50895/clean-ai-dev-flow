@@ -23,10 +23,14 @@ bash scripts/reap-worktrees.sh --apply
 
 額外保留某些 branch:`KEEP='feat/foo feat/bar' bash scripts/reap-worktrees.sh --apply`
 
+只有未追蹤檔的也一起砍(先看過 dry-run 列的檔名):`INCLUDE_UNTRACKED=1 bash scripts/reap-worktrees.sh --apply`
+
 ## 腳本行為(user 問才說)
 
 - 分類:已 merged / PR 關閉 / squash 被取代 / detached 無獨有 commit → **可砍**;未 merged 真 WIP → **留**。
-- fail-closed:分類不確定一律留,main 永不砍。
+- fail-closed:分類不確定一律留,主 worktree 與執行所在的 worktree 永不砍;有已追蹤檔改動的一律留。
+- 只有未追蹤檔(多半是 agent 暫存腳本)的預設留並列出檔名;user 看過確認不要,加 `INCLUDE_UNTRACKED=1` 才砍。
+- 基準讀 `kit.json` 的 `baseRef`(沒有就 `origin/main`);`prHost: bitbucket` 時不查 gh,只靠 git 判斷 merged / squash。
 - **branch ref 一律保留**(worktree remove 只砍工作目錄;已 commit 的不會丟,只有未提交改動會隨 --force 消失)。
 - `--apply` 每砍一條印 `[reap n/total]` + ok/skip,最後印剩餘數;砍一半 timeout 再跑一次會跳過已砍的。
 

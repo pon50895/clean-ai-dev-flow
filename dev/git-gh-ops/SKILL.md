@@ -1,6 +1,6 @@
 ---
 name: git-gh-ops
-description: General git/gh wrapper operations — branch creation, PR open/comment/merge state, fetch+pull patterns. Use as building block for higher-level skills (pr-conflict-solver, code-review).
+description: General git/gh wrapper operations — branch creation, PR open/comment/merge state, fetch+pull patterns. Use as building block for higher-level skills (pr-conflict-solver, code-review). Also holds the gh-to-git translation table used when kit.json `prHost` is bitbucket.
 ---
 
 # git-gh-ops
@@ -8,6 +8,20 @@ description: General git/gh wrapper operations — branch creation, PR open/comm
 Cross-cutting helper skill: bundle common git + gh operations.
 
 Protected branch names (`main` / `master` / `release`...) and the default base branch come from the project's `kit.json` (`protected_branches`) or CLAUDE.md; the templates below use `main` as the common default.
+
+## PR host: bitbucket
+
+Read `kit.json` `prHost` first. Missing or `github` -> the gh commands below apply. `bitbucket` -> `gh` does not work against the repo; never run it. `<remote>/<base>` comes from `kit.json` `baseRef` (e.g. `mvp/main`), `<branch>` from the user or the PR page. Translate:
+
+| gh (github) | bitbucket equivalent |
+|---|---|
+| `gh pr view <N> --json mergeable` | `git fetch <remote> && git merge-tree --write-tree <remote>/<base> <remote>/<branch>` (non-zero exit = conflict) |
+| `gh pr view <N> --json headRefName,...` | ask the user for the branch, or read it off the PR page; there is no CLI lookup |
+| `gh pr diff <N> [-- <paths>]` | `git diff <remote>/<base>...<remote>/<branch> [-- <paths>]` |
+| `gh pr create` | the `bitbucket-pr` skill |
+| `gh pr comment` | report the verdict in chat; the user posts it if they want it on the PR |
+| `gh pr list --state ...` | `git branch -r --merged <remote>/<base>` for merged; open-PR state needs the PR page or `bitbucket-pr` |
+| `gh pr ready` / draft | not applicable (no draft PRs) |
 
 ## Operations covered
 

@@ -9,6 +9,8 @@ Single-responsibility skill: resolve PR conflicts using safe rebase strategies.
 
 Base branch and force-push switch: read the project's `kit.json` / CLAUDE.md. Snippets below use `main` as the base and `ALLOW_FORCE_PUSH=1` as the example env switch some pre-push hooks require; drop the prefix if the project has no such switch.
 
+If `kit.json` `prHost` is `bitbucket`: input is the PR's branch; translate every `gh pr view ... mergeable` / `headRefName` call with the table in `git-gh-ops` (PR host: bitbucket).
+
 ## When to invoke
 
 - `gh pr view <N> --json mergeable --jq .mergeable` returns `CONFLICTING`

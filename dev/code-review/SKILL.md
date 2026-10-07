@@ -9,6 +9,8 @@ Single-responsibility skill: audit one PR against the project's red lines + test
 
 Project-specific values come from the project, not this file: red-line list and test-gate wording from the project `CLAUDE.md`; test / lint / typecheck / build commands and workspace names from `kit.json`. Red-line numbers below are written as "the project's red line on X" because numbering differs per project; cite the project's own number in the verdict.
 
+If `kit.json` `prHost` is `bitbucket`: input is the PR's branch, not a number; translate every `gh` command below with the table in `git-gh-ops` (PR host: bitbucket), and report the verdict in chat instead of a PR comment.
+
 ## When to invoke
 
 - User says "review PR #N"
