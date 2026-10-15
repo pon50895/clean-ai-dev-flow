@@ -116,6 +116,8 @@ sed -n '/### 提案桌/,/^###/p' $LEARN_DIR/IMPROVEMENT_LEDGER.md
 grep -E '"status": *"(open|active)"' $LEARN_DIR/violations.jsonl 2>/dev/null
 # 按 trigger_kind / tag 數重複
 grep -oE '"trigger_kind": *"[^"]+"' $LEARN_DIR/violations.jsonl | sort | uniq -c | sort -rn
+# 派工表的 model ID 有沒有過期(別名實際版本 vs C 表;exit 1 = 要提案更新 C,C 屬動前先問)
+python3 -I ~/claude-ops-playbook/scripts/check-model-ids.py
 # 壞 pattern 嘗試數:guard 每次 deny/ask 自動記,這是唯一不能自吹的行為計數器
 grep -oE '"why": *"[^"]{0,40}' $LEARN_DIR/gate-fires.jsonl 2>/dev/null | sort | uniq -c | sort -rn
 ls -t ~/.claude/projects/<project-slug>/memory/feedback_*.md 2>/dev/null | head -10
