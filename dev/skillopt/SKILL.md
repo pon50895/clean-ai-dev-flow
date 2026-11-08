@@ -79,6 +79,13 @@ cron 在 user 不在時跑 = 產出一份沒人裁決的報告 = 前三次循環
 
 ---
 
+## 與 l6-weekly 的分工
+
+週循環的機械部分(step 0 驗收、violations/gate 指標、無效提案自動退回、新復發大類觸發提案)改由
+`~/claude-ops-playbook/scripts/l6-weekly.mjs` 排程自動執行(週報在 `learning/weekly/`)。本 skill 的人工輪改成只處理:
+l6-weekly 開出的 PR(`auto/revert-*`、`auto/propose-*`)的審核與 accept,以及週報標「需 user 判斷」的項目(單向門、共用 commit)。
+下列步驟在手動蒸餾(user 點名、或自動提案不足)時才全跑。
+
 ## 步驟
 
 ### 0. 落地驗收(閉環邊 —— 沒有這步,前三次全部失效)
